@@ -18,27 +18,30 @@ class HomeController extends Controller
         $packages = collect();
         
         try {
-            $categories = Category::where('status', 'active')
-                ->where('show_on_homepage', true)
-                ->orderBy('sort_order')
-                ->limit(8)
-                ->get()
-                ->map(function ($category) {
-                    // Add icon mapping
-                    $iconMap = [
-                        'sound-equipment' => 'fas fa-volume-up',
-                        'lighting' => 'fas fa-lightbulb',
-                        'led-screens' => 'fas fa-tv',
-                        'dj-equipment' => 'fas fa-headphones',
-                        'tables-chairs' => 'fas fa-chair',
-                        'tents-canopy' => 'fas fa-campground',
-                        'photo-booths' => 'fas fa-camera',
-                        'power-distribution' => 'fas fa-bolt',
-                    ];
-                    
-                    $category->icon = $iconMap[$category->slug] ?? 'fas fa-box';
-                    return $category;
-                });
+          $categories = Category::where('status', 'active')
+    ->where('show_on_homepage', true)
+    ->withCount(['products' => function ($query) {
+        $query->where('status', 'active');
+    }])
+    ->orderBy('sort_order')
+    ->limit(8)
+    ->get()
+    ->map(function ($category) {
+        // Add icon mapping
+        $iconMap = [
+            'sound-equipment' => 'fas fa-volume-up',
+            'lighting' => 'fas fa-lightbulb',
+            'led-screens' => 'fas fa-tv',
+            'dj-equipment' => 'fas fa-headphones',
+            'tables-chairs' => 'fas fa-chair',
+            'tents-canopy' => 'fas fa-campground',
+            'photo-booths' => 'fas fa-camera',
+            'power-distribution' => 'fas fa-bolt',
+        ];
+        
+        $category->icon = $iconMap[$category->slug] ?? 'fas fa-box';
+        return $category;
+    });
             
             // Get featured products
             $featuredProducts = Product::with(['category', 'media'])
