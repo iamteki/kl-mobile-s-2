@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Product extends Model
+class Product extends Model implements HasMedia
 {
-    use HasFactory;
+    use HasFactory, InteractsWithMedia;
 
     protected $fillable = [
         'category_id',
@@ -69,27 +71,70 @@ class Product extends Model
     }
 
     /**
+     * Get inventory for the product
+     */
+    public function inventory(): HasMany
+    {
+        return $this->hasMany(Inventory::class);
+    }
+
+    /**
+     * Get booking items for the product
+     */
+    public function bookingItems()
+    {
+        return $this->morphMany(BookingItem::class, 'item');
+    }
+
+    /**
+     * Register media collections
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('main')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+
+        $this->addMediaCollection('gallery')
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+    }
+
+    /**
      * Get a specific attribute value
      */
-    public function getAttribute($key, $default = null)
+    public function getProductAttribute($key, $default = null)
     {
-        // Check if it's a model attribute first
-        if (array_key_exists($key, $this->attributes)) {
-            return parent::getAttribute($key);
-        }
-
-        // Check custom attributes
         $attribute = $this->attributes()->where('attribute_key', $key)->first();
         return $attribute ? $attribute->attribute_value : $default;
     }
 
     /**
-     * Get the first media URL (placeholder for now)
+     * Get the first media URL with fallback
      */
-    public function getFirstMediaUrl($collection = 'main')
+    public function getFirstMediaUrl($collection = 'main', $conversion = ''): string
     {
-        // Placeholder implementation until media library is set up
+        $media = $this->getFirstMedia($collection);
+        
+        if ($media) {
+            return $conversion ? $media->getUrl($conversion) : $media->getUrl();
+        }
+        
+        // Fallback to image field or placeholder
         return $this->image ?? 'https://via.placeholder.com/400x300';
+    }
+
+    /**
+     * Get all media URLs for a collection
+     */
+    public function getMediaUrls($collection = 'gallery'): array
+    {
+        return $this->getMedia($collection)->map(function ($media) {
+            return [
+                'url' => $media->getUrl(),
+                'thumb' => $media->getUrl('thumb'),
+                'id' => $media->id
+            ];
+        })->toArray();
     }
 
     /**
@@ -106,5 +151,21 @@ class Product extends Model
     public function scopeFeatured($query)
     {
         return $query->where('featured', true);
+    }
+
+    /**
+     * Get formatted price
+     */
+    public function getFormattedPriceAttribute()
+    {
+        return 'LKR ' . number_format($this->base_price);
+    }
+
+    /**
+     * Check if product is available
+     */
+    public function isAvailable(): bool
+    {
+        return $this->available_quantity > 0 && $this->status === 'active';
     }
 }
