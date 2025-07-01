@@ -3,14 +3,21 @@
 @section('title', $product->name . ' - KL Mobile Equipment Rental')
 @section('description', $product->meta_description ?? $product->short_description)
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('categories.index') }}">Equipment</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('category.show', $category->slug) }}">{{ $category->name }}</a></li>
-    <li class="breadcrumb-item active" aria-current="page">{{ $product->name }}</li>
-@endsection
-
 @section('content')
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-section">
+        <div class="container">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('categories.index') }}">Equipment</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('category.show', $category->slug) }}">{{ $category->name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ $product->name }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
     <!-- Product Detail Section -->
     <div class="container my-5">
         <div class="row">
@@ -29,7 +36,9 @@
         @include('frontend.products.partials.tabs')
 
         <!-- Related Products -->
-        @include('frontend.products.partials.related')
+        @if($relatedProducts->count() > 0)
+            @include('frontend.products.partials.related')
+        @endif
     </div>
 
     <!-- Quick View Modal (if needed) -->

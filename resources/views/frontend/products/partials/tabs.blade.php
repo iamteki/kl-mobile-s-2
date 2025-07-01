@@ -1,5 +1,5 @@
 <!-- Product Tabs -->
-<div class="tabs-section">
+<div class="tabs-section mt-5">
     <ul class="nav nav-tabs" role="tablist">
         <li class="nav-item">
             <a class="nav-link active" data-bs-toggle="tab" href="#specifications">Specifications</a>
@@ -23,19 +23,36 @@
 
         <!-- Features Tab -->
         <div class="tab-pane fade" id="features">
-            <div class="features-grid">
-                @foreach($features as $feature)
-                    <div class="feature-item">
-                        <div class="feature-icon">
-                            <i class="{{ $feature['icon'] }}"></i>
-                        </div>
-                        <div class="feature-content">
-                            <h6>{{ $feature['title'] }}</h6>
-                            <p>{{ $feature['description'] }}</p>
-                        </div>
+            @if(is_array($features) && count($features) > 0)
+                @if(isset($features[0]['icon']))
+                    <!-- Features with icons and descriptions -->
+                    <div class="features-grid">
+                        @foreach($features as $feature)
+                            <div class="feature-item">
+                                <div class="feature-icon">
+                                    <i class="{{ $feature['icon'] ?? 'fas fa-check' }}"></i>
+                                </div>
+                                <div class="feature-content">
+                                    <h6>{{ $feature['title'] ?? 'Feature' }}</h6>
+                                    <p>{{ $feature['description'] ?? '' }}</p>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
-                @endforeach
-            </div>
+                @else
+                    <!-- Simple feature list -->
+                    <ul class="features-list">
+                        @foreach($features as $feature)
+                            <li>
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                {{ $feature }}
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            @else
+                <p class="text-muted">No features listed.</p>
+            @endif
         </div>
 
         <!-- What's Included Tab -->
@@ -44,22 +61,33 @@
                 <div class="col-md-6">
                     <h5 class="mb-3">Standard Package Includes:</h5>
                     <ul class="list-unstyled">
-                        @foreach($included as $item)
+                        @forelse($included as $item)
                             <li class="mb-2">
                                 <i class="fas fa-check text-success me-2"></i>{{ $item }}
                             </li>
-                        @endforeach
+                        @empty
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success me-2"></i>Equipment as described
+                            </li>
+                        @endforelse
                     </ul>
                 </div>
                 <div class="col-md-6">
                     <h5 class="mb-3">Optional Add-ons:</h5>
                     <ul class="list-unstyled">
-                        <li class="mb-2"><i class="fas fa-plus text-primary me-2"></i> Wireless Microphone Set (2 mics)</li>
-                        <li class="mb-2"><i class="fas fa-plus text-primary me-2"></i> Additional Wired Microphones</li>
-                        <li class="mb-2"><i class="fas fa-plus text-primary me-2"></i> Professional Audio Technician</li>
-                        <li class="mb-2"><i class="fas fa-plus text-primary me-2"></i> Extended Cable Sets</li>
-                        <li class="mb-2"><i class="fas fa-plus text-primary me-2"></i> Early Morning Delivery</li>
-                        <li class="mb-2"><i class="fas fa-plus text-primary me-2"></i> Late Night Pickup</li>
+                        @if(isset($product->addons) && is_array($product->addons))
+                            @foreach($product->addons as $addon)
+                                <li class="mb-2">
+                                    <i class="fas fa-plus text-primary me-2"></i>
+                                    {{ $addon['name'] ?? $addon }} 
+                                    @if(isset($addon['price']))
+                                        - LKR {{ number_format($addon['price']) }}
+                                    @endif
+                                </li>
+                            @endforeach
+                        @else
+                            <li class="mb-2 text-muted">Contact us for available add-ons</li>
+                        @endif
                     </ul>
                 </div>
             </div>
@@ -67,35 +95,34 @@
 
         <!-- Requirements Tab -->
         <div class="tab-pane fade" id="requirements">
-            <div class="row">
-                <div class="col-md-6">
-                    <h5 class="mb-3">Venue Requirements:</h5>
-                    <ul class="list-unstyled">
-                        @foreach($requirements['venue'] as $req)
-                            <li class="mb-2">
-                                <i class="fas fa-{{ strpos($req, 'Power') !== false ? 'bolt' : (strpos($req, 'Space') !== false ? 'ruler' : (strpos($req, 'Access') !== false ? 'door-open' : 'shield-alt')) }} text-warning me-2"></i>
-                                {{ $req }}
+            @if(is_array($requirements) && count($requirements) > 0)
+                @if(isset($requirements['venue']) || isset($requirements['rental']))
+                    <!-- Grouped requirements -->
+                    @foreach($requirements as $group => $items)
+                        <h5 class="mb-3">{{ ucfirst($group) }} Requirements:</h5>
+                        <ul class="requirements-list mb-4">
+                            @foreach($items as $requirement)
+                                <li>
+                                    <i class="fas fa-info-circle text-warning me-2"></i>
+                                    {{ $requirement }}
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endforeach
+                @else
+                    <!-- Simple requirements list -->
+                    <ul class="requirements-list">
+                        @foreach($requirements as $requirement)
+                            <li>
+                                <i class="fas fa-info-circle text-warning me-2"></i>
+                                {{ $requirement }}
                             </li>
                         @endforeach
                     </ul>
-                </div>
-                <div class="col-md-6">
-                    <h5 class="mb-3">Rental Terms:</h5>
-                    <ul class="list-unstyled">
-                        @foreach($requirements['rental'] as $term)
-                            <li class="mb-2">
-                                <i class="fas fa-{{ strpos($term, 'ID') !== false ? 'id-card' : (strpos($term, 'Setup') !== false ? 'clock' : (strpos($term, 'Delivery') !== false ? 'truck' : 'file-contract')) }} text-primary me-2"></i>
-                                {{ $term }}
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-            </div>
-            <div class="alert alert-info mt-4">
-                <i class="fas fa-info-circle me-2"></i>
-                <strong>Note:</strong> For outdoor events, additional weather protection equipment may be required. 
-                Our team will assess your venue and recommend suitable solutions.
-            </div>
+                @endif
+            @else
+                <p class="text-muted">No specific requirements listed.</p>
+            @endif
         </div>
     </div>
 </div>

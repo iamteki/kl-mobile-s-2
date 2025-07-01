@@ -20,7 +20,7 @@ class BookingForm extends Component
     public $availabilityMessage = '';
     public $isAvailable = false;
     
-    protected $listeners = ['variationSelected'];
+    protected $listeners = ['variationSelected' => 'handleVariationSelected'];
     
     protected $rules = [
         'startDate' => 'required|date|after:today',
@@ -35,7 +35,7 @@ class BookingForm extends Component
         $this->endDate = Carbon::tomorrow()->format('Y-m-d');
     }
     
-    public function variationSelected($variation)
+    public function handleVariationSelected($variation)
     {
         $this->selectedVariation = $variation;
         $this->calculatePrice();
@@ -64,8 +64,10 @@ class BookingForm extends Component
     
     public function incrementQuantity()
     {
-        if ($this->quantity < $this->product->max_quantity) {
+        $maxQuantity = $this->product->max_quantity ?? 10;
+        if ($this->quantity < $maxQuantity) {
             $this->quantity++;
+            $this->updatedQuantity();
         }
     }
     
@@ -73,6 +75,7 @@ class BookingForm extends Component
     {
         if ($this->quantity > 1) {
             $this->quantity--;
+            $this->updatedQuantity();
         }
     }
     
@@ -148,9 +151,9 @@ class BookingForm extends Component
         // Update event details in cart
         $cartService->updateEventDetails($this->startDate);
         
-        // Emit event to update cart dropdown
-        $this->emit('cartUpdated');
-        $this->emit('itemAddedToCart');
+        // Dispatch events (Livewire 3 syntax)
+        $this->dispatch('cartUpdated');
+        $this->dispatch('itemAddedToCart');
         
         // Show success message
         session()->flash('success', 'Item added to cart successfully!');

@@ -40,7 +40,7 @@ class VariationSelector extends Component
         
         // Emit event to update price calculator
         $variation = collect($this->variations)->firstWhere('id', $variationId);
-        $this->emit('variationSelected', $variation);
+      $this->dispatch('variationSelected', variation: $variation);
     }
     
     public function render()

@@ -26,4 +26,16 @@ class ProductAttribute extends Model
     {
         return $this->belongsTo(Product::class);
     }
+    
+    // Accessor to match what ProductController expects
+    public function getAttributeNameAttribute()
+    {
+        return $this->attribute_key;
+    }
+    
+    // You can also add this method to the model for clarity
+    public function getAttributeValueAttribute()
+    {
+        return $this->attributes['attribute_value'];
+    }
 }

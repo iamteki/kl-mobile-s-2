@@ -3,6 +3,10 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use App\Services\CartService;
+use App\Services\AvailabilityService;
+use App\Services\PricingService;
+use App\Services\BookingService;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -11,7 +15,25 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+         // Register services as singletons
+        $this->app->singleton(CartService::class, function ($app) {
+            return new CartService();
+        });
+        
+        $this->app->singleton(AvailabilityService::class, function ($app) {
+            return new AvailabilityService();
+        });
+        
+        $this->app->singleton(PricingService::class, function ($app) {
+            return new PricingService();
+        });
+        
+        $this->app->singleton(BookingService::class, function ($app) {
+            return new BookingService(
+                $app->make(CartService::class),
+                $app->make(AvailabilityService::class)
+            );
+        });
     }
 
     /**

@@ -37,7 +37,7 @@ class CartDropdown extends Component
         $this->isOpen = true;
         
         // Auto close after 3 seconds
-        $this->dispatchBrowserEvent('cart-dropdown-opened');
+       $this->dispatch('cart-dropdown-opened');
     }
     
     public function removeItem($itemId)
@@ -45,7 +45,7 @@ class CartDropdown extends Component
         app(CartService::class)->removeItem($itemId);
         $this->refreshCart();
         
-        $this->emit('cartUpdated');
+       $this->dispatch('cartUpdated');
         
         if ($this->cartCount === 0) {
             $this->isOpen = false;

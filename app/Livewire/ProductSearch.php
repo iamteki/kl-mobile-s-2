@@ -68,13 +68,13 @@ class ProductSearch extends Component
         $this->searchResults = $query->limit(12)->get();
         $this->showResults = true;
         
-        // Emit event for analytics
-        $this->emit('searchPerformed', [
-            'category' => $this->category,
-            'date' => $this->eventDate,
-            'guests' => $this->numberOfGuests,
-            'term' => $this->searchTerm,
-        ]);
+        // Dispatch event for analytics (Livewire 3.x syntax)
+        $this->dispatch('searchPerformed', 
+            category: $this->category,
+            date: $this->eventDate,
+            guests: $this->numberOfGuests,
+            term: $this->searchTerm
+        );
     }
     
     public function clearSearch()

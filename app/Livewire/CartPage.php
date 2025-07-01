@@ -36,7 +36,7 @@ class CartPage extends Component
         $cartService->updateQuantity($itemId, $quantity);
         
         $this->refreshCart();
-        $this->emit('cartUpdated');
+       $this->dispatch('cartUpdated');
     }
     
     public function removeItem($itemId)
@@ -45,7 +45,7 @@ class CartPage extends Component
         $cartService->removeItem($itemId);
         
         $this->refreshCart();
-        $this->emit('cartUpdated');
+      $this->dispatch('cartUpdated');
         
         if (count($this->cart['items']) === 0) {
             return redirect()->route('cart.index');

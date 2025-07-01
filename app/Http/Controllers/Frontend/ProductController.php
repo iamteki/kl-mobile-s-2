@@ -122,22 +122,24 @@ class ProductController extends Controller
         ]);
     }
     
-    public function getVariations($productId)
+    public function getVariations(Product $product)
     {
-        $product = Product::with('variations')->findOrFail($productId);
+        $product->load('variations');
         
-        $variations = $product->variations->map(function ($variation) {
-            return [
-                'id' => $variation->id,
-                'name' => $variation->name,
-                'sku' => $variation->sku,
-                'price' => $variation->price,
-                'available_quantity' => $variation->available_quantity,
-                'attributes' => $variation->attributes
-            ];
-        });
-        
-        return response()->json($variations);
+        return response()->json([
+            'variations' => $product->variations->map(function ($variation) {
+                return [
+                    'id' => $variation->id,
+                    'name' => $variation->name,
+                    'sku' => $variation->sku,
+                    'price' => $variation->price,
+                    'price_formatted' => 'LKR ' . number_format($variation->price),
+                    'available' => $variation->available_quantity > 0,
+                    'quantity' => $variation->available_quantity,
+                    'attributes' => $variation->attributes
+                ];
+            })
+        ]);
     }
     
     public function calculatePrice(Request $request)
@@ -147,157 +149,287 @@ class ProductController extends Controller
             'variation_id' => 'nullable|exists:product_variations,id',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            'quantity' => 'required|integer|min:1',
-            'addons' => 'nullable|array'
+            'quantity' => 'required|integer|min:1'
         ]);
         
-        $price = $this->pricingService->calculatePrice(
-            $request->product_id,
-            $request->variation_id,
+        $product = Product::findOrFail($request->product_id);
+        
+        $pricing = $this->pricingService->calculatePrice(
+            $product,
             $request->start_date,
             $request->end_date,
             $request->quantity,
-            $request->addons ?? []
+            $request->variation_id
         );
         
-        return response()->json([
-            'days' => $price['days'],
-            'price_per_day' => $price['price_per_day'],
-            'subtotal' => $price['subtotal'],
-            'addons_total' => $price['addons_total'],
-            'total' => $price['total'],
-            'savings' => $price['savings'] ?? 0,
-            'formatted_total' => 'LKR ' . number_format($price['total'])
-        ]);
+        return response()->json($pricing);
     }
     
     private function getProductSpecifications($product)
     {
         $specs = [];
         
-        // Get specifications based on category
+        // Get attributes and format as specifications
+        foreach ($product->attributes as $attribute) {
+            $specs[] = [
+                'label' => $attribute->attribute_name,
+                'value' => $attribute->attribute_value,
+                'icon' => $this->getSpecIcon($attribute->attribute_name)
+            ];
+        }
+        
+        // Add default specifications based on category
         switch($product->category->slug) {
-            case 'sound-equipment':
-                $specs = [
-                    ['label' => 'Power Output (RMS)', 'value' => $product->getAttribute('power_output', '1000W')],
-                    ['label' => 'Peak Power', 'value' => $product->getAttribute('peak_power', '2000W')],
-                    ['label' => 'Frequency Response', 'value' => $product->getAttribute('frequency_response', '45Hz - 20kHz')],
-                    ['label' => 'Coverage Area', 'value' => $product->getAttribute('coverage_area', 'Up to 200 pax indoor / 150 pax outdoor')],
-                    ['label' => 'Speaker Configuration', 'value' => $product->getAttribute('speaker_config', '2x 15" Woofers + Horn Tweeters')],
-                    ['label' => 'Input Types', 'value' => $product->getAttribute('input_types', 'XLR, 1/4" TRS, RCA')],
-                    ['label' => 'Weight (per speaker)', 'value' => $product->getAttribute('weight', '45 kg')],
-                    ['label' => 'Dimensions (per speaker)', 'value' => $product->getAttribute('dimensions', '700 x 450 x 400 mm')],
-                    ['label' => 'Power Requirements', 'value' => $product->getAttribute('power_requirements', '220-240V AC, 50Hz')],
-                    ['label' => 'Brand', 'value' => $product->brand],
-                    ['label' => 'Model', 'value' => $product->getAttribute('model', 'PRX815W')]
+            case 'sound-systems':
+                $defaultSpecs = [
+                    ['label' => 'Power Output', 'value' => '1000W RMS', 'icon' => 'fas fa-bolt'],
+                    ['label' => 'Coverage Area', 'value' => 'Up to 200 guests', 'icon' => 'fas fa-expand'],
+                    ['label' => 'Setup Time', 'value' => '30-45 minutes', 'icon' => 'fas fa-clock']
                 ];
                 break;
                 
             case 'lighting':
-                $specs = [
-                    ['label' => 'Light Type', 'value' => $product->getAttribute('light_type', 'LED Par')],
-                    ['label' => 'Power Consumption', 'value' => $product->getAttribute('power_consumption', '150W')],
-                    ['label' => 'Color Options', 'value' => $product->getAttribute('color_options', 'RGB + White')],
-                    ['label' => 'DMX Channels', 'value' => $product->getAttribute('dmx_channels', '7 Channels')],
-                    ['label' => 'Beam Angle', 'value' => $product->getAttribute('beam_angle', '25°')],
-                    ['label' => 'Brightness', 'value' => $product->getAttribute('brightness', '10,000 Lumens')],
-                    ['label' => 'Brand', 'value' => $product->brand],
-                    ['label' => 'Model', 'value' => $product->getAttribute('model')]
+                $defaultSpecs = [
+                    ['label' => 'Light Type', 'value' => 'LED', 'icon' => 'fas fa-lightbulb'],
+                    ['label' => 'Color Options', 'value' => 'RGB + White', 'icon' => 'fas fa-palette'],
+                    ['label' => 'DMX Control', 'value' => 'Yes', 'icon' => 'fas fa-sliders-h']
+                ];
+                break;
+                
+            case 'led-screens':
+                $defaultSpecs = [
+                    ['label' => 'Resolution', 'value' => 'Full HD', 'icon' => 'fas fa-tv'],
+                    ['label' => 'Brightness', 'value' => '5000 nits', 'icon' => 'fas fa-sun'],
+                    ['label' => 'Viewing Angle', 'value' => '140°', 'icon' => 'fas fa-eye']
                 ];
                 break;
                 
             default:
-                // Generic specifications
-                $specs = [
-                    ['label' => 'Brand', 'value' => $product->brand],
-                    ['label' => 'Model', 'value' => $product->getAttribute('model')],
-                    ['label' => 'Dimensions', 'value' => $product->getAttribute('dimensions')],
-                    ['label' => 'Weight', 'value' => $product->getAttribute('weight')],
-                ];
+                $defaultSpecs = [];
         }
         
-        // Filter out empty values
-        return array_filter($specs, function($spec) {
-            return !empty($spec['value']);
-        });
+        // Merge with defaults if specs are empty
+        if (empty($specs) && !empty($defaultSpecs)) {
+            $specs = $defaultSpecs;
+        }
+        
+        return $specs;
     }
     
     private function getProductFeatures($product)
     {
-        // This would come from product attributes or features table
+        // Try to get features from product data
+        if ($product->features) {
+            return json_decode($product->features, true) ?? [];
+        }
+        
+        // Default features based on category
         $defaultFeatures = [
-            'sound-equipment' => [
-                ['icon' => 'fas fa-volume-up', 'title' => 'Crystal Clear Audio', 'description' => 'Professional-grade sound quality with minimal distortion even at high volumes.'],
-                ['icon' => 'fas fa-wifi', 'title' => 'Wireless Ready', 'description' => 'Compatible with wireless microphone systems and Bluetooth audio streaming.'],
-                ['icon' => 'fas fa-shield-alt', 'title' => 'Built-in Protection', 'description' => 'Thermal and overload protection ensures equipment safety during extended use.'],
-                ['icon' => 'fas fa-cog', 'title' => 'Easy Setup', 'description' => 'Quick and simple setup with color-coded connections and clear labeling.'],
-                ['icon' => 'fas fa-arrows-alt', 'title' => 'Versatile Mounting', 'description' => 'Can be pole-mounted, stacked, or used with professional speaker stands.'],
-                ['icon' => 'fas fa-sliders-h', 'title' => 'DSP Control', 'description' => 'Digital Signal Processing for optimal sound tuning and feedback suppression.']
+            'sound-systems' => [
+                'Professional grade audio quality',
+                'Easy setup and operation',
+                'Includes all necessary cables',
+                'Technical support available',
+                'Suitable for indoor and outdoor events',
+                'Built-in protection circuits'
             ],
             'lighting' => [
-                ['icon' => 'fas fa-palette', 'title' => 'Full Color Spectrum', 'description' => 'RGB color mixing with millions of color combinations.'],
-                ['icon' => 'fas fa-wifi', 'title' => 'DMX Control', 'description' => 'Professional DMX512 control for synchronized lighting shows.'],
-                ['icon' => 'fas fa-bolt', 'title' => 'Energy Efficient', 'description' => 'LED technology provides bright output with low power consumption.'],
-                ['icon' => 'fas fa-sync', 'title' => 'Sound Activation', 'description' => 'Built-in programs can sync to music beats automatically.']
+                'Energy efficient LED technology',
+                'Multiple color options',
+                'DMX compatible',
+                'Safe for indoor/outdoor use',
+                'Professional mounting hardware included',
+                'Remote control available'
+            ],
+            'led-screens' => [
+                'High resolution display',
+                'Wide viewing angle',
+                'Weather resistant',
+                'Content management system included',
+                'Multiple input sources supported',
+                'Professional setup service'
+            ],
+            'staging' => [
+                'Modular design for flexible configurations',
+                'Non-slip surface',
+                'Professional grade construction',
+                'Safety railings included',
+                'Quick assembly system',
+                'Certified load capacity'
+            ],
+            'generators' => [
+                'Silent operation technology',
+                'Fuel efficient',
+                'Automatic voltage regulation',
+                'Multiple power outlets',
+                'Weather protected',
+                '24/7 technical support'
             ]
         ];
         
-        return $defaultFeatures[$product->category->slug] ?? [];
+        return $defaultFeatures[$product->category->slug] ?? [
+            'Professional quality equipment',
+            'Well maintained and tested',
+            'Delivery and pickup available',
+            'Technical support included'
+        ];
     }
     
     private function getDefaultIncluded($product)
     {
-        $defaults = [
-            'sound-equipment' => [
-                '2x Professional Speakers',
-                '2x Professional Speaker Stands',
-                '1x 8-Channel Mixing Console',
-                '2x 50ft XLR Cables',
-                '4x 25ft XLR Cables',
-                'Power Distribution Unit',
-                'All Necessary Power Cables',
-                'Protective Covers During Transport'
+        $defaultIncluded = [
+            'sound-systems' => [
+                'Main speakers and amplifiers',
+                'All necessary cables and connectors',
+                'Basic mixing console',
+                'Microphone (if applicable)',
+                'Speaker stands',
+                'Setup instructions',
+                'Power distribution',
+                'Transport covers'
             ],
             'lighting' => [
-                'Complete Light Set as Described',
-                'DMX Controller',
-                'DMX Cables',
-                'Power Cables',
-                'Safety Cables',
-                'Mounting Clamps',
-                'Transport Cases'
+                'Light fixtures as described',
+                'Power cables',
+                'DMX cables',
+                'Controller (if applicable)',
+                'Safety cables',
+                'Mounting clamps',
+                'Color gels (if applicable)',
+                'Transport cases'
+            ],
+            'led-screens' => [
+                'LED panels',
+                'Processing unit',
+                'All cables and connectors',
+                'Mounting structure',
+                'Basic content package',
+                'Remote control',
+                'Setup tools',
+                'Weather protection covers'
+            ],
+            'staging' => [
+                'Stage platforms',
+                'Support legs',
+                'Safety railings',
+                'Steps/stairs',
+                'Joining clips',
+                'Leveling feet',
+                'Non-slip surfaces',
+                'Assembly tools'
             ]
         ];
         
-        return $defaults[$product->category->slug] ?? ['Equipment as described', 'All necessary cables', 'Setup instructions'];
+        return $defaultIncluded[$product->category->slug] ?? [
+            'Main equipment',
+            'All necessary cables',
+            'Setup guide',
+            'Basic accessories'
+        ];
     }
     
     private function getProductRequirements($product)
     {
-        return [
-            'venue' => [
-                'Power: 2x 13A power outlets within 10m of setup location',
-                'Space: Minimum 3m x 2m for equipment placement',
-                'Access: Ground floor or elevator access for equipment',
-                'Security: Secure storage area if overnight setup'
+        if ($product->requirements) {
+            return json_decode($product->requirements, true) ?? [];
+        }
+        
+        $defaultRequirements = [
+            'sound-systems' => [
+                'Stable power supply (230V)',
+                'Adequate space for setup (minimum 3m x 2m)',
+                'Protection from weather if outdoor event',
+                'Access to venue 2 hours before event',
+                'Level ground for speaker placement',
+                'Clear line of sight to audience area'
             ],
-            'rental' => [
-                'Valid ID and deposit required',
-                'Setup time: 1-2 hours before event',
-                'Delivery: Free within KL city center',
-                'Damage waiver available at checkout'
+            'lighting' => [
+                'Adequate power points (16A recommended)',
+                'Ceiling height minimum 3m',
+                'Stable mounting points if rigging',
+                'Clear access paths for setup',
+                'Protection from rain if outdoor',
+                'Darkened environment for best effect'
+            ],
+            'led-screens' => [
+                'Level ground surface',
+                'Power supply within 50m',
+                'Protection from direct sunlight',
+                'Minimum 2m clearance in front',
+                'Vehicle access for delivery',
+                'Secure area to prevent tampering'
+            ],
+            'staging' => [
+                'Level ground surface',
+                'Adequate space for assembly',
+                'Vehicle access for delivery',
+                'Weather protection if outdoor',
+                'Safety barriers if required',
+                'Loading capacity not to be exceeded'
+            ],
+            'generators' => [
+                'Well-ventilated area',
+                'Level ground placement',
+                'Minimum 3m from buildings',
+                'Security fencing if required',
+                'Fuel storage area',
+                'Fire extinguisher on site'
             ]
         ];
+        
+        return $defaultRequirements[$product->category->slug] ?? [
+            'Adequate power supply',
+            'Sufficient space for setup',
+            'Access to venue before event',
+            'Weather protection if needed'
+        ];
+    }
+    
+    private function getSpecIcon($attributeName)
+    {
+        $iconMap = [
+            'Power Output' => 'fas fa-bolt',
+            'Coverage Area' => 'fas fa-expand',
+            'Weight' => 'fas fa-weight',
+            'Dimensions' => 'fas fa-ruler-combined',
+            'Frequency Response' => 'fas fa-wave-square',
+            'Resolution' => 'fas fa-tv',
+            'Brightness' => 'fas fa-sun',
+            'Color' => 'fas fa-palette',
+            'Channels' => 'fas fa-sliders-h',
+            'Wattage' => 'fas fa-plug',
+            'Capacity' => 'fas fa-users',
+            'Setup Time' => 'fas fa-clock',
+            'Brand' => 'fas fa-tag',
+            'Model' => 'fas fa-hashtag',
+            'Input Types' => 'fas fa-ethernet',
+            'Output Types' => 'fas fa-sign-out-alt',
+            'Connectivity' => 'fas fa-wifi',
+            'Control' => 'fas fa-gamepad',
+            'Safety' => 'fas fa-shield-alt',
+            'Warranty' => 'fas fa-certificate'
+        ];
+        
+        return $iconMap[$attributeName] ?? 'fas fa-check-circle';
     }
     
     private function getAvailabilityClass($quantity)
     {
         if ($quantity <= 0) {
-            return 'out-stock';
+            return 'out-of-stock';
         } elseif ($quantity <= 3) {
             return 'low-stock';
+        } else {
+            return 'in-stock';
         }
-        
-        return 'in-stock';
+    }
+    
+    /**
+     * Get attribute value from product with fallback
+     */
+    private function getAttribute($product, $key, $default = null)
+    {
+        $attribute = $product->attributes->firstWhere('attribute_name', $key);
+        return $attribute ? $attribute->attribute_value : $default;
     }
 }
