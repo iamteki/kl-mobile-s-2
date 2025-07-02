@@ -9,7 +9,7 @@
              alt="{{ $service->name }}"
              loading="lazy">
         
-        @if($service->badge)
+        @if(isset($service->badge) && $service->badge)
             <span class="service-badge {{ $service->badge_class ?? '' }}">
                 {{ $service->badge }}
             </span>
@@ -20,9 +20,13 @@
         <div class="service-category">{{ $service->category }}</div>
         <h4 class="service-title">{{ $service->name }}</h4>
         
-        @if($service->features)
+        @php
+            $features = is_array($service->features) ? $service->features : json_decode($service->features, true);
+        @endphp
+        
+        @if($features && is_array($features) && count($features) > 0)
             <ul class="service-features">
-                @foreach($service->features as $feature)
+                @foreach(array_slice($features, 0, 4) as $feature)
                     <li>{{ $feature }}</li>
                 @endforeach
             </ul>

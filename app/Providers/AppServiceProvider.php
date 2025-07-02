@@ -3,10 +3,12 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\View;
 use App\Services\CartService;
 use App\Services\AvailabilityService;
 use App\Services\PricingService;
 use App\Services\BookingService;
+use App\View\Composers\NavigationComposer;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,7 +17,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-         // Register services as singletons
+        // Register services as singletons
         $this->app->singleton(CartService::class, function ($app) {
             return new CartService();
         });
@@ -41,6 +43,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Register view composers
+        View::composer(
+            ['layouts.partials.navigation', 'layouts.partials.footer'], 
+            NavigationComposer::class
+        );
     }
 }
