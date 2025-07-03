@@ -1,198 +1,169 @@
 @extends('layouts.app')
 
 @section('title', 'Professional Event Services')
-@section('description', 'Hire professional DJs, photographers, videographers, emcees, and event staff for your events in Sri Lanka.')
+@section('description', 'Browse our professional service providers including DJs, photographers, videographers, and event staff.')
 
 @section('content')
 <!-- Hero Section -->
-@include('frontend.services.partials.hero')
+<section class="services-hero position-relative">
+    <div class="hero-bg-overlay"></div>
+    <div class="container position-relative z-1">
+        <div class="row align-items-center min-vh-50">
+            <div class="col-lg-8 mx-auto text-center">
+                <h1 class="display-3 fw-bold text-white mb-4">
+                    Professional Event Services
+                </h1>
+                <p class="lead text-white-50 mb-5">
+                    Find the perfect professionals for your event from our vetted network of service providers
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
 
-<!-- Services Content -->
-<section class="services-content py-5">
+<!-- Service Categories -->
+<section class="service-categories py-5">
     <div class="container">
-        <!-- Service Category Tabs -->
-        <div class="service-tabs mb-5">
-            <ul class="nav nav-pills justify-content-center mb-4" id="serviceTab" role="tablist">
+        <!-- Category Tabs -->
+        <div class="category-tabs mb-5">
+            <ul class="nav nav-pills justify-content-center" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" 
-                            id="all-tab" 
                             data-bs-toggle="tab" 
-                            data-bs-target="#all" 
-                            type="button" 
-                            role="tab" 
-                            aria-controls="all" 
-                            aria-selected="true">
-                        All Services ({{ $services->count() }})
+                            data-bs-target="#all-services" 
+                            type="button">
+                        All Services
                     </button>
                 </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" 
-                            id="entertainment-tab" 
-                            data-bs-toggle="tab" 
-                            data-bs-target="#entertainment" 
-                            type="button" 
-                            role="tab" 
-                            aria-controls="entertainment" 
-                            aria-selected="false">
-                        Entertainment ({{ $categoryCounts['Entertainment'] ?? 0 }})
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" 
-                            id="technical-crew-tab" 
-                            data-bs-toggle="tab" 
-                            data-bs-target="#technical-crew" 
-                            type="button" 
-                            role="tab" 
-                            aria-controls="technical-crew" 
-                            aria-selected="false">
-                        Technical Crew ({{ $categoryCounts['Technical Crew'] ?? 0 }})
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" 
-                            id="media-production-tab" 
-                            data-bs-toggle="tab" 
-                            data-bs-target="#media-production" 
-                            type="button" 
-                            role="tab" 
-                            aria-controls="media-production" 
-                            aria-selected="false">
-                        Media Production ({{ $categoryCounts['Media Production'] ?? 0 }})
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" 
-                            id="event-staff-tab" 
-                            data-bs-toggle="tab" 
-                            data-bs-target="#event-staff" 
-                            type="button" 
-                            role="tab" 
-                            aria-controls="event-staff" 
-                            aria-selected="false">
-                        Event Staff ({{ $categoryCounts['Event Staff'] ?? 0 }})
-                    </button>
-                </li>
+                @foreach($parentCategories as $key => $name)
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#{{ $key }}" 
+                                type="button">
+                            {{ $name }}
+                        </button>
+                    </li>
+                @endforeach
             </ul>
         </div>
+        
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- All Services -->
+            <div class="tab-pane fade show active" id="all-services" role="tabpanel">
+                <div class="row g-4">
+                    @foreach($categories as $category)
+                        <div class="col-lg-4 col-md-6">
+                            @include('frontend.services.partials.category-card', ['category' => $category])
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            
+            <!-- Parent Category Tabs -->
+            @foreach($parentCategories as $key => $name)
+                <div class="tab-pane fade" id="{{ $key }}" role="tabpanel">
+                    <div class="row g-4">
+                        @if(isset($groupedCategories[$key]))
+                            @foreach($groupedCategories[$key] as $category)
+                                <div class="col-lg-4 col-md-6">
+                                    @include('frontend.services.partials.category-card', ['category' => $category])
+                                </div>
+                            @endforeach
+                        @else
+                            <div class="col-12">
+                                <div class="text-center py-5">
+                                    <i class="fas fa-users fa-4x text-muted mb-3"></i>
+                                    <h3 class="text-muted">No services in this category yet</h3>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+</section>
 
-        <!-- Filters Row -->
-        @include('frontend.services.partials.filters')
-
-        <!-- Services Grid -->
-        <div class="tab-content" id="serviceTabContent">
-            <!-- All Services Tab -->
-            <div class="tab-pane fade show active" id="all" role="tabpanel" aria-labelledby="all-tab">
-                <div class="row g-4">
-                    @forelse($services as $service)
-                        <div class="col-lg-4 col-md-6">
-                            <x-service-card :service="$service" />
-                        </div>
-                    @empty
-                        <div class="col-12">
-                            <div class="text-center py-5">
-                                <i class="fas fa-users fa-4x text-muted mb-3"></i>
-                                <h3 class="text-muted">No services available</h3>
-                                <p class="text-muted">Check back later for our professional services.</p>
-                            </div>
-                        </div>
-                    @endforelse
+<!-- Why Choose Our Services -->
+<section class="why-choose-services py-5 bg-dark">
+    <div class="container">
+        <h2 class="text-center mb-5">Why Choose Our Service Providers</h2>
+        <div class="row g-4">
+            <div class="col-md-3 text-center">
+                <div class="feature-box">
+                    <i class="fas fa-certificate fa-3x text-primary mb-3"></i>
+                    <h5>Vetted Professionals</h5>
+                    <p class="text-muted">All providers are verified and experienced</p>
                 </div>
             </div>
-            
-            <!-- Entertainment Tab -->
-            <div class="tab-pane fade" id="entertainment" role="tabpanel" aria-labelledby="entertainment-tab">
-                <div class="row g-4">
-                    @forelse($services->where('category', 'Entertainment') as $service)
-                        <div class="col-lg-4 col-md-6">
-                            <x-service-card :service="$service" />
-                        </div>
-                    @empty
-                        <div class="col-12">
-                            <div class="text-center py-5">
-                                <i class="fas fa-music fa-4x text-muted mb-3"></i>
-                                <h3 class="text-muted">No entertainment services available</h3>
-                            </div>
-                        </div>
-                    @endforelse
+            <div class="col-md-3 text-center">
+                <div class="feature-box">
+                    <i class="fas fa-star fa-3x text-warning mb-3"></i>
+                    <h5>Customer Reviews</h5>
+                    <p class="text-muted">Real reviews from verified bookings</p>
                 </div>
             </div>
-            
-            <!-- Technical Crew Tab -->
-            <div class="tab-pane fade" id="technical-crew" role="tabpanel" aria-labelledby="technical-crew-tab">
-                <div class="row g-4">
-                    @forelse($services->where('category', 'Technical Crew') as $service)
-                        <div class="col-lg-4 col-md-6">
-                            <x-service-card :service="$service" />
-                        </div>
-                    @empty
-                        <div class="col-12">
-                            <div class="text-center py-5">
-                                <i class="fas fa-tools fa-4x text-muted mb-3"></i>
-                                <h3 class="text-muted">No technical crew services available</h3>
-                            </div>
-                        </div>
-                    @endforelse
+            <div class="col-md-3 text-center">
+                <div class="feature-box">
+                    <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
+                    <h5>Guaranteed Quality</h5>
+                    <p class="text-muted">Quality assurance on all services</p>
                 </div>
             </div>
-            
-            <!-- Media Production Tab -->
-            <div class="tab-pane fade" id="media-production" role="tabpanel" aria-labelledby="media-production-tab">
-                <div class="row g-4">
-                    @forelse($services->where('category', 'Media Production') as $service)
-                        <div class="col-lg-4 col-md-6">
-                            <x-service-card :service="$service" />
-                        </div>
-                    @empty
-                        <div class="col-12">
-                            <div class="text-center py-5">
-                                <i class="fas fa-camera fa-4x text-muted mb-3"></i>
-                                <h3 class="text-muted">No media production services available</h3>
-                            </div>
-                        </div>
-                    @endforelse
-                </div>
-            </div>
-            
-            <!-- Event Staff Tab -->
-            <div class="tab-pane fade" id="event-staff" role="tabpanel" aria-labelledby="event-staff-tab">
-                <div class="row g-4">
-                    @forelse($services->where('category', 'Event Staff') as $service)
-                        <div class="col-lg-4 col-md-6">
-                            <x-service-card :service="$service" />
-                        </div>
-                    @empty
-                        <div class="col-12">
-                            <div class="text-center py-5">
-                                <i class="fas fa-user-tie fa-4x text-muted mb-3"></i>
-                                <h3 class="text-muted">No event staff services available</h3>
-                            </div>
-                        </div>
-                    @endforelse
+            <div class="col-md-3 text-center">
+                <div class="feature-box">
+                    <i class="fas fa-headset fa-3x text-info mb-3"></i>
+                    <h5>24/7 Support</h5>
+                    <p class="text-muted">Always here to help you</p>
                 </div>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Call to Action -->
-@include('frontend.services.partials.cta')
-
 @push('styles')
 <style>
-/* Tab Styles */
+/* Hero Styles */
+.services-hero {
+    background-image: url('https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1920&h=1080&fit=crop');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    min-height: 50vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.hero-bg-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(147,51,234,0.3) 100%);
+    z-index: 0;
+}
+
+/* Category Tabs */
+.category-tabs {
+    background: var(--bg-card);
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid var(--border-dark);
+}
+
 .nav-pills .nav-link {
     color: var(--text-gray);
-    background-color: var(--bg-card);
+    background-color: transparent;
     border-radius: 30px;
-    padding: 12px 30px;
+    padding: 10px 25px;
     margin: 0 5px;
     transition: all 0.3s;
     border: 1px solid var(--border-dark);
-    font-size: 14px;
-    text-transform: uppercase;
     font-weight: 600;
-    letter-spacing: 0.5px;
 }
 
 .nav-pills .nav-link:hover {
@@ -207,12 +178,43 @@
     border-color: transparent;
 }
 
-/* Services Content */
-.services-content {
+/* Service Categories */
+.service-categories {
     background-color: var(--bg-darker);
     min-height: 600px;
 }
+
+/* Feature Box */
+.feature-box {
+    padding: 30px;
+    transition: transform 0.3s;
+}
+
+.feature-box:hover {
+    transform: translateY(-5px);
+}
+
+.feature-box i {
+    opacity: 0.8;
+}
 </style>
+@endpush
+
+@push('scripts')
+<script>
+// Remember selected tab
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const parentCategory = urlParams.get('parent');
+    
+    if (parentCategory) {
+        const tabButton = document.querySelector(`[data-bs-target="#${parentCategory}"]`);
+        if (tabButton) {
+            new bootstrap.Tab(tabButton).show();
+        }
+    }
+});
+</script>
 @endpush
 
 @endsection

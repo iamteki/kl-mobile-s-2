@@ -7,10 +7,10 @@ use App\Services\CartService;
 
 class CartDropdown extends Component
 {
+    public $isOpen = false;
     public $cartItems = [];
     public $cartTotal = 0;
     public $cartCount = 0;
-    public $isOpen = false;
     
     protected $listeners = [
         'cartUpdated' => 'refreshCart',
@@ -24,11 +24,11 @@ class CartDropdown extends Component
     
     public function refreshCart()
     {
-        $cart = app(CartService::class)->getCart();
+        $cartService = app(CartService::class);
         
-        $this->cartItems = $cart['items'] ?? [];
-        $this->cartTotal = $cart['total'] ?? 0;
-        $this->cartCount = $cart['count'] ?? 0;
+        $this->cartItems = $cartService->getItems();
+        $this->cartTotal = $cartService->getTotal();
+        $this->cartCount = $cartService->getItemCount();
     }
     
     public function handleItemAdded()
@@ -37,7 +37,12 @@ class CartDropdown extends Component
         $this->isOpen = true;
         
         // Auto close after 3 seconds
-       $this->dispatch('cart-dropdown-opened');
+        $this->dispatch('closeCartDropdown');
+    }
+    
+    public function toggleCart()
+    {
+        $this->isOpen = !$this->isOpen;
     }
     
     public function removeItem($itemId)
@@ -45,29 +50,9 @@ class CartDropdown extends Component
         app(CartService::class)->removeItem($itemId);
         $this->refreshCart();
         
-       $this->dispatch('cartUpdated');
-        
         if ($this->cartCount === 0) {
             $this->isOpen = false;
         }
-    }
-    
-    public function updateQuantity($itemId, $quantity)
-    {
-        if ($quantity < 1) {
-            $this->removeItem($itemId);
-            return;
-        }
-        
-        app(CartService::class)->updateQuantity($itemId, $quantity);
-        $this->refreshCart();
-        
-        $this->emit('cartUpdated');
-    }
-    
-    public function toggleDropdown()
-    {
-        $this->isOpen = !$this->isOpen;
     }
     
     public function render()

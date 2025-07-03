@@ -56,35 +56,29 @@
                             </li>
                             <li><hr class="dropdown-divider"></li>
                             
-                            @foreach($navServiceCategories as $category)
-                                <li class="dropdown-header">
-                                    {{ $category['name'] }} 
-                                    <span class="badge bg-secondary ms-1">{{ $category['count'] }}</span>
-                                </li>
-                                
-                                @if(isset($navServicesByCategory[$category['name']]))
-                                    @foreach($navServicesByCategory[$category['name']] as $service)
+                            @foreach($navServiceParentCategories as $parentKey => $parentInfo)
+                                @if(isset($navServiceCategories[$parentKey]) && $navServiceCategories[$parentKey]->count() > 0)
+                                    <li class="dropdown-header">
+                                        <i class="{{ $parentInfo['icon'] }} me-1"></i>
+                                        {{ $parentInfo['name'] }}
+                                    </li>
+                                    
+                                    @foreach($navServiceCategories[$parentKey] as $category)
                                         <li>
                                             <a class="dropdown-item ps-4" 
-                                               href="{{ route('service.show', $service->slug) }}">
-                                                {{ $service->name }}
-                                                @if($service->badge)
-                                                    <span class="badge bg-primary ms-1">{{ $service->badge }}</span>
+                                               href="{{ route('services.category', $category->slug) }}">
+                                                @if($category->icon)
+                                                    <i class="{{ $category->icon }} me-2" style="width: 20px;"></i>
                                                 @endif
+                                                {{ $category->name }}
+                                                <span class="badge bg-secondary ms-1">{{ $category->active_providers_count }}</span>
                                             </a>
                                         </li>
                                     @endforeach
-                                @else
-                                    <li>
-                                        <a class="dropdown-item ps-4" 
-                                           href="{{ route('services.index', ['category' => $category['slug']]) }}">
-                                            View All {{ $category['name'] }}
-                                        </a>
-                                    </li>
-                                @endif
-                                
-                                @if(!$loop->last)
-                                    <li><hr class="dropdown-divider"></li>
+                                    
+                                    @if(!$loop->last)
+                                        <li><hr class="dropdown-divider"></li>
+                                    @endif
                                 @endif
                             @endforeach
                         </ul>

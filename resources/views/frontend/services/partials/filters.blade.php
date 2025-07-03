@@ -1,119 +1,212 @@
-<!-- Filters Row -->
-<div class="filters-section mb-4">
-    <div class="row g-3 align-items-center">
-        <div class="col-md-4">
-            <label class="form-label text-muted small mb-1">Experience Level</label>
-            <select class="form-select" id="experienceFilter">
-                <option value="">All Levels</option>
-                <option value="entry">Entry Level</option>
-                <option value="professional">Professional</option>
-                <option value="premium">Premium</option>
-            </select>
+<!-- Filters Sidebar -->
+<div class="filters-sidebar">
+    <h3 class="filters-title mb-4">
+        <i class="fas fa-filter me-2"></i>Filters
+    </h3>
+    
+    <form action="{{ route('services.category', $category->slug) }}" method="GET" id="filtersForm">
+        <!-- Preserve sort parameter -->
+        @if(request('sort'))
+            <input type="hidden" name="sort" value="{{ request('sort') }}">
+        @endif
+        
+        <!-- Experience Level -->
+        <div class="filter-group">
+            <h5 class="filter-heading">Experience Level</h5>
+            <div class="filter-options">
+                @foreach(['Entry' => 'Entry Level', 'Professional' => 'Professional', 'Premium' => 'Premium'] as $value => $label)
+                    <div class="form-check">
+                        <input class="form-check-input" 
+                               type="radio" 
+                               name="experience_level" 
+                               id="exp_{{ $value }}" 
+                               value="{{ $value }}"
+                               {{ request('experience_level') == $value ? 'checked' : '' }}
+                               onchange="this.form.submit()">
+                        <label class="form-check-label" for="exp_{{ $value }}">
+                            {{ $label }}
+                        </label>
+                    </div>
+                @endforeach
+                @if(request('experience_level'))
+                    <a href="{{ route('services.category', array_merge(['category' => $category->slug], request()->except('experience_level'))) }}" 
+                       class="clear-filter">
+                        Clear
+                    </a>
+                @endif
+            </div>
         </div>
         
-        <div class="col-md-4">
-            <label class="form-label text-muted small mb-1">Event Type</label>
-            <select class="form-select" id="eventTypeFilter">
-                <option value="">All Events</option>
-                <option value="wedding">Weddings</option>
-                <option value="corporate">Corporate Events</option>
-                <option value="birthday">Birthday Parties</option>
-                <option value="concert">Concerts & Shows</option>
-                <option value="conference">Conferences</option>
-                <option value="festival">Festivals</option>
-            </select>
+        <!-- Price Range -->
+        <div class="filter-group">
+            <h5 class="filter-heading">Price Range</h5>
+            <div class="filter-options">
+                @foreach(['budget' => 'Budget (Under 20K)', 'mid' => 'Mid-range (20K-50K)', 'premium' => 'Premium (50K+)'] as $value => $label)
+                    <div class="form-check">
+                        <input class="form-check-input" 
+                               type="radio" 
+                               name="price_range" 
+                               id="price_{{ $value }}" 
+                               value="{{ $value }}"
+                               {{ request('price_range') == $value ? 'checked' : '' }}
+                               onchange="this.form.submit()">
+                        <label class="form-check-label" for="price_{{ $value }}">
+                            {{ $label }}
+                        </label>
+                    </div>
+                @endforeach
+                @if(request('price_range'))
+                    <a href="{{ route('services.category', array_merge(['category' => $category->slug], request()->except('price_range'))) }}" 
+                       class="clear-filter">
+                        Clear
+                    </a>
+                @endif
+            </div>
         </div>
         
-        <div class="col-md-4">
-            <label class="form-label text-muted small mb-1">Sort By</label>
-            <select class="form-select" id="sortFilter">
-                <option value="featured">Featured</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-                <option value="popular">Most Popular</option>
-            </select>
+        <!-- Rating -->
+        <div class="filter-group">
+            <h5 class="filter-heading">Minimum Rating</h5>
+            <div class="filter-options">
+                @foreach([4 => '4+ Stars', 3 => '3+ Stars', 2 => '2+ Stars'] as $value => $label)
+                    <div class="form-check">
+                        <input class="form-check-input" 
+                               type="radio" 
+                               name="rating" 
+                               id="rating_{{ $value }}" 
+                               value="{{ $value }}"
+                               {{ request('rating') == $value ? 'checked' : '' }}
+                               onchange="this.form.submit()">
+                        <label class="form-check-label d-flex align-items-center" for="rating_{{ $value }}">
+                            <span class="me-2">{{ $label }}</span>
+                            <span class="stars">
+                                @for($i = 1; $i <= 5; $i++)
+                                    <i class="fas fa-star {{ $i <= $value ? 'text-warning' : 'text-muted' }}"></i>
+                                @endfor
+                            </span>
+                        </label>
+                    </div>
+                @endforeach
+                @if(request('rating'))
+                    <a href="{{ route('services.category', array_merge(['category' => $category->slug], request()->except('rating'))) }}" 
+                       class="clear-filter">
+                        Clear
+                    </a>
+                @endif
+            </div>
         </div>
-    </div>
+        
+        <!-- Languages -->
+        @if($languages->count() > 0)
+            <div class="filter-group">
+                <h5 class="filter-heading">Languages</h5>
+                <div class="filter-options">
+                    @foreach($languages as $language)
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   name="languages[]" 
+                                   id="lang_{{ Str::slug($language) }}" 
+                                   value="{{ $language }}"
+                                   {{ in_array($language, (array)request('languages', [])) ? 'checked' : '' }}
+                                   onchange="this.form.submit()">
+                            <label class="form-check-label" for="lang_{{ Str::slug($language) }}">
+                                {{ $language }}
+                            </label>
+                        </div>
+                    @endforeach
+                    @if(request('languages'))
+                        <a href="{{ route('services.category', array_merge(['category' => $category->slug], request()->except('languages'))) }}" 
+                           class="clear-filter">
+                            Clear
+                        </a>
+                    @endif
+                </div>
+            </div>
+        @endif
+        
+        <!-- Clear All Filters -->
+        @if(request()->hasAny(['experience_level', 'price_range', 'rating', 'languages']))
+            <div class="text-center mt-4">
+                <a href="{{ route('services.category', $category->slug) }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-times me-2"></i>Clear All Filters
+                </a>
+            </div>
+        @endif
+    </form>
 </div>
 
 <style>
-.filters-section {
+.filters-sidebar {
     background: var(--bg-card);
-    padding: 20px;
+    padding: 25px;
     border-radius: 15px;
     border: 1px solid var(--border-dark);
+    position: sticky;
+    top: 100px;
 }
 
-.filters-section .form-select {
-    background: var(--bg-darker);
-    border: 1px solid var(--border-dark);
+.filters-title {
+    font-size: 20px;
+    font-weight: 700;
     color: var(--text-light);
-    padding: 10px 15px;
-    font-size: 14px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-dark);
 }
 
-.filters-section .form-select:focus {
-    background: var(--bg-darker);
-    border-color: var(--primary-purple);
-    color: var(--text-light);
-    box-shadow: 0 0 0 0.25rem rgba(147, 51, 234, 0.25);
+.filter-group {
+    margin-bottom: 30px;
 }
 
-.filters-section .form-label {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+.filter-heading {
+    font-size: 16px;
     font-weight: 600;
+    color: var(--text-light);
+    margin-bottom: 15px;
+}
+
+.filter-options {
+    position: relative;
+}
+
+.form-check {
+    margin-bottom: 12px;
+}
+
+.form-check-input {
+    background-color: var(--bg-dark);
+    border-color: var(--border-dark);
+}
+
+.form-check-input:checked {
+    background-color: var(--primary-purple);
+    border-color: var(--primary-purple);
+}
+
+.form-check-label {
+    color: var(--text-gray);
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.form-check-label:hover {
+    color: var(--text-light);
+}
+
+.clear-filter {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--primary-purple);
+    text-decoration: none;
+}
+
+.clear-filter:hover {
+    color: var(--secondary-purple);
+    text-decoration: underline;
+}
+
+.stars {
+    font-size: 12px;
 }
 </style>
-
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Filter handling
-    const filters = ['experienceFilter', 'eventTypeFilter', 'sortFilter'];
-    
-    filters.forEach(filterId => {
-        const filter = document.getElementById(filterId);
-        if (filter) {
-            filter.addEventListener('change', function() {
-                applyFilters();
-            });
-        }
-    });
-    
-    function applyFilters() {
-        const experience = document.getElementById('experienceFilter').value;
-        const eventType = document.getElementById('eventTypeFilter').value;
-        const sort = document.getElementById('sortFilter').value;
-        
-        // Build URL parameters
-        const params = new URLSearchParams(window.location.search);
-        
-        if (experience) params.set('experience', experience);
-        else params.delete('experience');
-        
-        if (eventType) params.set('event_type', eventType);
-        else params.delete('event_type');
-        
-        if (sort) params.set('sort', sort);
-        else params.delete('sort');
-        
-        // Reload page with new parameters
-        window.location.href = window.location.pathname + '?' + params.toString();
-    }
-    
-    // Set current filter values from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('experience')) {
-        document.getElementById('experienceFilter').value = urlParams.get('experience');
-    }
-    if (urlParams.get('event_type')) {
-        document.getElementById('eventTypeFilter').value = urlParams.get('event_type');
-    }
-    if (urlParams.get('sort')) {
-        document.getElementById('sortFilter').value = urlParams.get('sort');
-    }
-});
-</script>
-@endpush

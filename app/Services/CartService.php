@@ -2,273 +2,214 @@
 
 namespace App\Services;
 
-use App\Models\Product;
-use App\Models\ProductVariation;
 use Illuminate\Support\Facades\Session;
 
 class CartService
 {
-    protected $sessionKey = 'cart';
+    protected string $sessionKey = 'cart';
     
     /**
-     * Get the current cart
+     * Get all cart items
      */
-    public function getCart()
+    public function getItems(): array
     {
-        $cart = Session::get($this->sessionKey, [
-            'items' => [],
-            'total' => 0,
-            'count' => 0
-        ]);
-        
-        // Recalculate totals to ensure accuracy
-        $this->recalculateTotals($cart);
-        
-        return $cart;
+        return Session::get($this->sessionKey, []);
+    }
+    
+    /**
+     * Get cart summary (alias for getSummary)
+     */
+    public function getCart(): array
+    {
+        return $this->getSummary();
     }
     
     /**
      * Add item to cart
      */
-    public function addItem($productId, $quantity = 1, $variationId = null, $eventDate = null)
+    public function addItem(array $itemData): string
     {
-        $cart = $this->getCart();
+        $cart = $this->getItems();
+        $cartItemId = $this->generateCartItemId($itemData);
         
-        // Get product details
-        $product = Product::findOrFail($productId);
-        $variation = $variationId ? ProductVariation::findOrFail($variationId) : null;
-        
-        // Create unique cart item key
-        $cartKey = $this->generateCartKey($productId, $variationId);
-        
-        // Check if item already exists in cart
-        if (isset($cart['items'][$cartKey])) {
-            $cart['items'][$cartKey]['quantity'] += $quantity;
+        if ($itemData['type'] === 'product' && isset($cart[$cartItemId])) {
+            $cart[$cartItemId]['quantity'] += $itemData['quantity'];
         } else {
-            $cart['items'][$cartKey] = [
-                'id' => $cartKey,
-                'product_id' => $productId,
-                'variation_id' => $variationId,
-                'name' => $product->name,
-                'variation' => $variation ? $variation->name : null,
-                'price' => $variation ? $variation->price : $product->base_price,
-                'quantity' => $quantity,
-                'image' => $product->getFirstMediaUrl('main'),
-                'category' => $product->category->name,
-                'event_date' => $eventDate
-            ];
+            $itemData['id'] = $cartItemId;
+            $itemData['added_at'] = now();
+            $cart[$cartItemId] = $itemData;
         }
         
-        // Recalculate totals
-        $this->recalculateTotals($cart);
-        
-        // Save to session
         Session::put($this->sessionKey, $cart);
         
-        return $cart;
+        return $cartItemId;
+    }
+    
+    /**
+     * Generate unique cart item ID
+     */
+    protected function generateCartItemId(array $itemData): string
+    {
+        switch ($itemData['type']) {
+            case 'product':
+                return 'product_' . $itemData['product_id'] . '_' . ($itemData['variation_id'] ?? 0) . '_' . strtotime($itemData['event_date']);
+                
+            case 'service_provider':
+                return 'service_' . $itemData['provider_id'] . '_' . ($itemData['pricing_tier_id'] ?? 0) . '_' . strtotime($itemData['event_date'] . ' ' . $itemData['start_time']);
+                
+            case 'package':
+                return 'package_' . $itemData['package_id'] . '_' . strtotime($itemData['event_date']);
+                
+            default:
+                return uniqid('item_');
+        }
     }
     
     /**
      * Update item quantity
      */
-    public function updateQuantity($itemId, $quantity)
+    public function updateQuantity(string $itemId, int $quantity): bool
     {
-        $cart = $this->getCart();
+        $cart = $this->getItems();
         
-        if (isset($cart['items'][$itemId])) {
-            if ($quantity <= 0) {
-                unset($cart['items'][$itemId]);
-            } else {
-                $cart['items'][$itemId]['quantity'] = $quantity;
-            }
-            
-            $this->recalculateTotals($cart);
+        if (isset($cart[$itemId])) {
+            $cart[$itemId]['quantity'] = max(1, $quantity); // Ensure quantity is at least 1
             Session::put($this->sessionKey, $cart);
+            return true;
         }
         
-        return $cart;
+        return false;
     }
     
     /**
      * Remove item from cart
      */
-    public function removeItem($itemId)
+    public function removeItem(string $itemId): bool
     {
-        $cart = $this->getCart();
+        $cart = $this->getItems();
         
-        if (isset($cart['items'][$itemId])) {
-            unset($cart['items'][$itemId]);
-            $this->recalculateTotals($cart);
+        if (isset($cart[$itemId])) {
+            unset($cart[$itemId]);
             Session::put($this->sessionKey, $cart);
+            return true;
         }
         
-        return $cart;
+        return false;
     }
     
     /**
-     * Clear the cart
+     * Clear entire cart
      */
-    public function clearCart()
+    public function clearCart(): void
     {
         Session::forget($this->sessionKey);
+    }
+    
+    /**
+     * Get cart subtotal
+     */
+    public function getSubtotal(): float
+    {
+        $subtotal = 0;
         
-        return [
-            'items' => [],
-            'total' => 0,
-            'count' => 0
-        ];
+        foreach ($this->getItems() as $item) {
+            $itemTotal = $item['price'] * $item['quantity'];
+            
+            if ($item['type'] === 'product' && isset($item['rental_days'])) {
+                $itemTotal *= max(1, $item['rental_days']); // Ensure at least 1 day
+            }
+            
+            $subtotal += $itemTotal;
+        }
+        
+        return round($subtotal, 2);
     }
     
     /**
-     * Get cart count
+     * Get tax amount
      */
-    public function getCount()
+    public function getTax(): float
     {
-        $cart = $this->getCart();
-        return $cart['count'];
+        $taxRate = config('site.business.tax_rate', 0) / 100;
+        return round($this->getSubtotal() * $taxRate, 2);
     }
     
     /**
-     * Get cart total
+     * Get total amount
      */
-    public function getTotal()
+    public function getTotal(): float
     {
-        $cart = $this->getCart();
-        return $cart['total'];
+        return round($this->getSubtotal() + $this->getTax(), 2);
+    }
+    
+    /**
+     * Get total item count
+     */
+    public function getItemCount(): int
+    {
+        $count = 0;
+        
+        foreach ($this->getItems() as $item) {
+            $count += $item['quantity'];
+        }
+        
+        return $count;
     }
     
     /**
      * Check if cart has items
      */
-    public function hasItems()
+    public function hasItems(): bool
     {
-        $cart = $this->getCart();
-        return count($cart['items']) > 0;
+        return !empty($this->getItems());
     }
     
     /**
-     * Get a specific cart item
+     * Get cart summary
      */
-    public function getItem($itemId)
+    public function getSummary(): array
     {
-        $cart = $this->getCart();
-        return $cart['items'][$itemId] ?? null;
-    }
-    
-    /**
-     * Update event details for all cart items
-     */
-    public function updateEventDetails($eventDate, $eventType = null, $venue = null)
-    {
-        $cart = $this->getCart();
-        
-        foreach ($cart['items'] as &$item) {
-            $item['event_date'] = $eventDate;
-            if ($eventType) {
-                $item['event_type'] = $eventType;
-            }
-            if ($venue) {
-                $item['venue'] = $venue;
-            }
-        }
-        
-        Session::put($this->sessionKey, $cart);
-        
-        return $cart;
+        return [
+            'items' => $this->getItems(),
+            'item_count' => $this->getItemCount(),
+            'subtotal' => $this->getSubtotal(),
+            'tax' => $this->getTax(),
+            'total' => $this->getTotal(),
+        ];
     }
     
     /**
      * Validate cart items availability
      */
-    public function validateAvailability($eventDate)
+    public function validateAvailability(): array
     {
-        $cart = $this->getCart();
-        $unavailableItems = [];
+        $errors = [];
+        $cart = $this->getItems();
         
-        foreach ($cart['items'] as $itemId => $item) {
-            // Check product availability
-            $product = Product::find($item['product_id']);
-            
-            if (!$product || $product->status !== 'active') {
-                $unavailableItems[] = $item['name'];
-                continue;
+        foreach ($cart as $itemId => $item) {
+            // Implement actual validation logic here
+            // This is just a placeholder structure
+            switch ($item['type']) {
+                case 'product':
+                    if (!isset($item['product_id']) || empty($item['product_id'])) {
+                        $errors[$itemId] = 'Invalid product';
+                    }
+                    break;
+                    
+                case 'service_provider':
+                    if (!isset($item['provider_id']) || empty($item['provider_id'])) {
+                        $errors[$itemId] = 'Invalid service provider';
+                    }
+                    break;
+                    
+                case 'package':
+                    if (!isset($item['package_id']) || empty($item['package_id'])) {
+                        $errors[$itemId] = 'Invalid package';
+                    }
+                    break;
             }
-            
-            // Check quantity availability
-            if ($item['variation_id']) {
-                $variation = ProductVariation::find($item['variation_id']);
-                if (!$variation || $variation->available_quantity < $item['quantity']) {
-                    $unavailableItems[] = $item['name'] . ' (' . $item['variation'] . ')';
-                }
-            } else {
-                if ($product->available_quantity < $item['quantity']) {
-                    $unavailableItems[] = $item['name'];
-                }
-            }
-            
-            // TODO: Check booking availability for the event date
         }
         
-        return [
-            'valid' => empty($unavailableItems),
-            'unavailable_items' => $unavailableItems
-        ];
-    }
-    
-    /**
-     * Generate unique cart key
-     */
-    private function generateCartKey($productId, $variationId = null)
-    {
-        return $variationId ? "{$productId}_{$variationId}" : $productId;
-    }
-    
-    /**
-     * Recalculate cart totals
-     */
-    private function recalculateTotals(&$cart)
-    {
-        $total = 0;
-        $count = 0;
-        
-        foreach ($cart['items'] as $item) {
-            $total += $item['price'] * $item['quantity'];
-            $count += $item['quantity'];
-        }
-        
-        $cart['total'] = $total;
-        $cart['count'] = $count;
-    }
-    
-    /**
-     * Apply coupon to cart
-     */
-    public function applyCoupon($couponCode)
-    {
-        $cart = $this->getCart();
-        
-        // TODO: Implement coupon validation and discount calculation
-        // For now, just store the coupon code
-        $cart['coupon'] = $couponCode;
-        $cart['discount'] = 0;
-        
-        Session::put($this->sessionKey, $cart);
-        
-        return $cart;
-    }
-    
-    /**
-     * Remove coupon from cart
-     */
-    public function removeCoupon()
-    {
-        $cart = $this->getCart();
-        
-        unset($cart['coupon']);
-        unset($cart['discount']);
-        
-        Session::put($this->sessionKey, $cart);
-        
-        return $cart;
+        return $errors;
     }
 }

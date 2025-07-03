@@ -4,7 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Frontend\HomeController;
 use App\Http\Controllers\Frontend\CategoryController;
 use App\Http\Controllers\Frontend\ProductController;
-use App\Http\Controllers\Frontend\ServiceController;
+use App\Http\Controllers\Frontend\ServiceCategoryController;
+use App\Http\Controllers\Frontend\ServiceProviderController;
 use App\Http\Controllers\Frontend\PackageController;
 use App\Http\Controllers\Frontend\CartController;
 use App\Http\Controllers\Frontend\CheckoutController;
@@ -27,9 +28,16 @@ Route::get('/equipment', [CategoryController::class, 'index'])->name('categories
 Route::get('/equipment/{category}', [CategoryController::class, 'show'])->name('category.show');
 Route::get('/equipment/{category}/{product}', [ProductController::class, 'show'])->name('product.show');
 
-// Services
-Route::get('/services', [ServiceController::class, 'index'])->name('services.index');
-Route::get('/services/{service}', [ServiceController::class, 'show'])->name('service.show');
+// Services - New Structure
+Route::prefix('services')->group(function () {
+    Route::get('/', [ServiceCategoryController::class, 'index'])->name('services.index');
+    Route::get('/{category}', [ServiceCategoryController::class, 'show'])->name('services.category');
+    Route::get('/{category}/{provider}', [ServiceProviderController::class, 'show'])->name('services.provider');
+    
+    // AJAX routes
+    Route::post('/provider/{provider}/check-availability', [ServiceProviderController::class, 'checkAvailability'])
+        ->name('services.provider.check-availability');
+});
 
 // Packages
 Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');

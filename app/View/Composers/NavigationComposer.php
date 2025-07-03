@@ -4,7 +4,7 @@ namespace App\View\Composers;
 
 use Illuminate\View\View;
 use App\Models\Category;
-use App\Models\Service;
+use App\Models\ServiceCategory;
 use App\Models\Package;
 
 class NavigationComposer
@@ -24,26 +24,33 @@ class NavigationComposer
             ->select('name', 'slug', 'icon')
             ->get();
         
-        // Get service categories with count
-        $serviceCategories = Service::active()
-            ->selectRaw('category, COUNT(*) as count')
-            ->groupBy('category')
-            ->orderBy('category')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'name' => $item->category,
-                    'slug' => strtolower(str_replace(' ', '-', $item->category)),
-                    'count' => $item->count
-                ];
-            });
-        
-        // Get featured services for each category (optional - for mega menu)
-        $servicesByCategory = Service::active()
+        // Get service categories grouped by parent
+        $serviceCategories = ServiceCategory::active()
+            ->withCount('activeProviders')
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
-            ->groupBy('category');
+            ->groupBy('parent_category');
+        
+        // Parent categories for services
+        $serviceParentCategories = [
+            'entertainment' => [
+                'name' => 'Entertainment',
+                'icon' => 'fas fa-music'
+            ],
+            'technical-crew' => [
+                'name' => 'Technical Crew',
+                'icon' => 'fas fa-tools'
+            ],
+            'media-production' => [
+                'name' => 'Media Production',
+                'icon' => 'fas fa-camera'
+            ],
+            'event-staff' => [
+                'name' => 'Event Staff',
+                'icon' => 'fas fa-users'
+            ]
+        ];
         
         // Check if there are any active packages
         $hasPackages = Package::active()->exists();
@@ -51,7 +58,7 @@ class NavigationComposer
         $view->with([
             'navEquipmentCategories' => $equipmentCategories,
             'navServiceCategories' => $serviceCategories,
-            'navServicesByCategory' => $servicesByCategory,
+            'navServiceParentCategories' => $serviceParentCategories,
             'navHasPackages' => $hasPackages
         ]);
     }
