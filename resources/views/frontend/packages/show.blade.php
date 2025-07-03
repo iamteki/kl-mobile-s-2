@@ -5,7 +5,7 @@
 
 @section('content')
     <!-- Page Header -->
-    <section class="page-header">
+    <section class="page-header" style="margin-top: 0;">
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-md-8">
@@ -210,11 +210,12 @@
 
 @push('styles')
 <style>
-/* Page Header */
+/* Page Adjustments for Fixed Navbar */
 .page-header {
     background: linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%);
     padding: 100px 0 50px;
     border-bottom: 1px solid var(--border-dark);
+    margin-top: 80px; /* Adjust based on your navbar height */
 }
 
 .page-title {
@@ -417,6 +418,11 @@
     margin: 0;
 }
 
+/* Package Details Section */
+.package-details {
+    min-height: 100vh; /* Ensure enough height for scrolling */
+}
+
 /* Booking Card */
 .booking-card {
     background: var(--bg-card);
@@ -424,7 +430,15 @@
     padding: 30px;
     border: 1px solid var(--border-dark);
     position: sticky;
-    top: 100px;
+    top: 100px; /* Adjust based on navbar height + desired gap */
+    z-index: 10; /* Below navbar */
+    transition: box-shadow 0.3s ease;
+}
+
+/* Add shadow when stuck */
+.booking-card.stuck {
+    box-shadow: 0 10px 30px rgba(147, 51, 234, 0.2);
+    border-color: var(--primary-purple);
 }
 
 .booking-title {
@@ -534,6 +548,69 @@
     color: var(--text-light);
 }
 
+/* Package Booking Component Styles */
+.booking-form-wrapper {
+    background: var(--bg-darker);
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px;
+}
+
+.form-title {
+    color: var(--text-light);
+    font-weight: 600;
+    font-size: 20px;
+}
+
+.form-label {
+    color: var(--text-light);
+    font-weight: 500;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.form-control,
+.form-select {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-dark);
+    color: var(--text-light);
+    padding: 12px 15px;
+    border-radius: 10px;
+    transition: all 0.3s;
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--bg-card);
+    border-color: var(--primary-purple);
+    color: var(--text-light);
+    box-shadow: 0 0 0 0.2rem rgba(147, 51, 234, 0.25);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+.form-select option {
+    background-color: var(--bg-card);
+    color: var(--text-light);
+}
+
+.is-invalid {
+    border-color: var(--danger-red);
+}
+
+.invalid-feedback {
+    color: var(--danger-red);
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.quick-contact {
+    padding-top: 20px;
+    border-top: 1px solid var(--border-dark);
+}
+
 /* Responsive */
 @media (max-width: 991px) {
     .page-title {
@@ -569,60 +646,45 @@
         gap: 20px;
     }
 }
+
+@media (max-width: 576px) {
+    .booking-form-wrapper {
+        padding: 20px;
+    }
+    
+    .d-flex.gap-2 {
+        flex-direction: column;
+    }
+    
+    .d-flex.gap-2 .btn {
+        width: 100%;
+    }
+}
 </style>
 @endpush
 
- route("cart.add") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({
-            type: 'package',
-            id: packageId,
-            quantity: 1
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Show success message
-            button.innerHTML = '<i class="fas fa-check me-2"></i>Added!';
-            button.classList.remove('btn-primary');
-            button.classList.add('btn-success');
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sticky card functionality
+    const bookingCard = document.querySelector('.booking-card');
+    if (bookingCard) {
+        let lastScroll = 0;
+        
+        window.addEventListener('scroll', function() {
+            const currentScroll = window.pageYOffset;
+            const cardTop = bookingCard.getBoundingClientRect().top;
             
-            // Update cart count if exists
-            const cartCount = document.querySelector('.cart-count');
-            if (cartCount) {
-                cartCount.textContent = data.cartCount;
+            // Add stuck class when card is stuck to top
+            if (cardTop <= 100) {
+                bookingCard.classList.add('stuck');
+            } else {
+                bookingCard.classList.remove('stuck');
             }
             
-            // Reset button after 2 seconds
-            setTimeout(() => {
-                button.innerHTML = originalText;
-                button.classList.remove('btn-success');
-                button.classList.add('btn-primary');
-                button.disabled = false;
-            }, 2000);
-            
-            // Optional: Show notification
-            if (typeof showNotification === 'function') {
-                showNotification('success', 'Package added to cart!');
-            }
-        } else {
-            // Show error
-            button.innerHTML = originalText;
-            button.disabled = false;
-            alert(data.message || 'Error adding to cart');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        button.innerHTML = originalText;
-        button.disabled = false;
-        alert('Error adding to cart. Please try again.');
-    });
-}
+            lastScroll = currentScroll;
+        });
+    }
+});
 </script>
 @endpush

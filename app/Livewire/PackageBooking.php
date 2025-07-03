@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Livewire;
+namespace App\Livewire;  
 
 use Livewire\Component;
 use App\Models\Package;
@@ -51,7 +51,7 @@ class PackageBooking extends Component
         $this->resetValidation();
     }
 
-    public function addToCart()
+    public function proceedToBooking()
     {
         if ($this->showBookingForm) {
             $this->validate();
@@ -60,41 +60,73 @@ class PackageBooking extends Component
         $this->isProcessing = true;
 
         try {
-            $cartService = app(CartService::class);
-            
-            $itemData = [
-                'type' => 'package',
-                'id' => $this->package->id,
-                'name' => $this->package->name,
-                'price' => $this->package->price,
-                'quantity' => 1,
-                'image' => $this->package->image,
-                'attributes' => [
+            // Store booking details in session for checkout
+            session([
+                'booking_details' => [
+                    'type' => 'package',
+                    'package_id' => $this->package->id,
+                    'package_name' => $this->package->name,
+                    'package_price' => $this->package->price,
                     'event_date' => $this->eventDate,
                     'event_type' => $this->eventType,
                     'venue_address' => $this->venueAddress,
                     'attendees' => $this->attendees,
                     'notes' => $this->notes,
-                    'service_duration' => $this->package->service_duration ?? 8
+                    'service_duration' => $this->package->service_duration ?? 8,
+                    'category' => $this->package->category,
+                    'suitable_for' => $this->package->suitable_for,
+                    'image' => $this->package->image
                 ]
+            ]);
+
+            // Redirect to checkout/booking page
+            return redirect()->route('checkout.event-details');
+            
+        } catch (\Exception $e) {
+            session()->flash('error', 'Error processing booking. Please try again.');
+            \Log::error('Package booking error: ' . $e->getMessage());
+            $this->isProcessing = false;
+        }
+    }
+
+    public function quickAddToCart()
+    {
+        $this->isProcessing = true;
+
+        try {
+            $cartService = app(CartService::class);
+            
+            // Format data for quick add (without event details)
+            $itemData = [
+                'type' => 'package',
+                'package_id' => $this->package->id,
+                'name' => $this->package->name,
+                'price' => $this->package->price,
+                'quantity' => 1,
+                'event_date' => now()->addDays(7)->format('Y-m-d'), // Default to 7 days from now
+                'image' => $this->package->image,
+                'category' => $this->package->category,
+                'suitable_for' => $this->package->suitable_for,
+                'service_duration' => $this->package->service_duration ?? 8,
+                'event_type' => '',
+                'venue_address' => '',
+                'attendees' => '',
+                'notes' => ''
             ];
 
-            $cartService->add($itemData);
+            // Add to cart
+            $cartService->addItem($itemData);
 
-            // Emit event for cart update
-            $this->emit('cartUpdated');
+            // Emit events
+            $this->dispatch('cartUpdated');
+            $this->dispatch('itemAddedToCart');
             
             // Show success message
-            session()->flash('success', 'Package added to cart successfully!');
-            
-            // Reset form
-            $this->reset(['eventDate', 'eventType', 'venueAddress', 'attendees', 'notes', 'showBookingForm']);
-            
-            // Optionally redirect to cart
-            // return redirect()->route('cart.index');
+            session()->flash('success', 'Package added to cart! Please update event details during checkout.');
             
         } catch (\Exception $e) {
             session()->flash('error', 'Error adding package to cart. Please try again.');
+            \Log::error('Quick add package error: ' . $e->getMessage());
         } finally {
             $this->isProcessing = false;
         }
