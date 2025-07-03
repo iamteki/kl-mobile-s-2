@@ -55,5 +55,6 @@ class AppServiceProvider extends ServiceProvider
     Livewire::component('cart-dropdown', \App\Livewire\CartDropdown::class);
     Livewire::component('cart-page', \App\Livewire\CartPage::class);
     Livewire::component('booking-form', \App\Livewire\BookingForm::class);
+    Livewire::component('package-booking', \App\Http\Livewire\PackageBooking::class);
     }
 }

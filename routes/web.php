@@ -42,6 +42,8 @@ Route::prefix('services')->group(function () {
 // Packages
 Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
 Route::get('/packages/{package}', [PackageController::class, 'show'])->name('package.show');
+Route::post('/packages/add-to-cart', [PackageController::class, 'addToCart'])->name('packages.add-to-cart');
+Route::get('/packages/{package}/quick-view', [PackageController::class, 'quickView'])->name('packages.quick-view');
 
 // Cart
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
