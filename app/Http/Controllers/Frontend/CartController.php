@@ -104,53 +104,62 @@ class CartController extends Controller
     /**
      * Add service provider to cart
      */
-    protected function addServiceProvider(Request $request)
-    {
-        $request->validate([
-            'provider_id' => 'required|exists:service_providers,id',
-            'pricing_tier_id' => 'nullable|exists:service_provider_pricing,id',
-            'event_date' => 'required|date|after:today',
-            'start_time' => 'required',
-            'duration' => 'required_without:pricing_tier_id|integer|min:1',
-        ]);
-        
-        $provider = ServiceProvider::findOrFail($request->provider_id);
-        
-        // Get pricing details
-        if ($request->pricing_tier_id) {
-            $pricingTier = ServiceProviderPricing::findOrFail($request->pricing_tier_id);
-            $price = $pricingTier->price;
-            $duration = $pricingTier->duration;
-            $tierName = $pricingTier->tier_name;
-        } else {
-            $price = $provider->base_price * ($request->duration / $provider->min_booking_hours);
-            $duration = $request->duration . ' hours';
-            $tierName = 'Standard';
-        }
-        
-        // Prepare cart item data
-        $itemData = [
-            'type' => 'service_provider',
-            'provider_id' => $provider->id,
-            'pricing_tier_id' => $request->pricing_tier_id,
-            'name' => $provider->display_name . ' - ' . $tierName,
-            'price' => $price,
-            'quantity' => 1, // Service providers are always quantity 1
-            'event_date' => $request->event_date,
-            'start_time' => $request->start_time,
-            'duration' => $duration,
-            'image' => $provider->profile_image_url,
-            'category' => $provider->category->name,
-        ];
-        
-        $this->cartService->addItem($itemData);
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Service provider added to cart',
-            'cart_count' => $this->cartService->getItemCount()
-        ]);
+   protected function addServiceProvider(Request $request)
+{
+    $rules = [
+        'provider_id' => 'required|exists:service_providers,id',
+        'pricing_tier_id' => 'nullable|exists:service_provider_pricing,id',
+        'event_date' => 'required|date|after:today',
+        'start_time' => 'required',
+    ];
+    
+    // Only require duration if no pricing tier is selected
+    if (!$request->pricing_tier_id) {
+        $rules['duration'] = 'required|integer|min:1';
     }
+    
+    $request->validate($rules);
+    
+    $provider = ServiceProvider::findOrFail($request->provider_id);
+    
+    // Get pricing details
+    if ($request->pricing_tier_id) {
+        $pricingTier = ServiceProviderPricing::findOrFail($request->pricing_tier_id);
+        $price = $pricingTier->price;
+        // Extract numeric duration from string like "4 hours"
+        preg_match('/(\d+)/', $pricingTier->duration, $matches);
+        $duration = isset($matches[1]) ? (int)$matches[1] : $provider->min_booking_hours;
+        $tierName = $pricingTier->tier_name;
+    } else {
+        $duration = (int)$request->duration;
+        $price = $provider->base_price * ($duration / $provider->min_booking_hours);
+        $tierName = 'Standard';
+    }
+    
+    // Prepare cart item data
+    $itemData = [
+        'type' => 'service_provider',
+        'provider_id' => $provider->id,
+        'pricing_tier_id' => $request->pricing_tier_id,
+        'name' => $provider->display_name . ' - ' . $tierName,
+        'price' => $price,
+        'quantity' => 1, // Service providers are always quantity 1
+        'event_date' => $request->event_date,
+        'start_time' => $request->start_time,
+        'duration' => $duration, // Store as integer
+        'duration_text' => $duration . ' hours', // Store display text separately
+        'image' => $provider->profile_image_url ?? 'https://via.placeholder.com/300',
+        'category' => $provider->category->name ?? 'Service',
+    ];
+    
+    $this->cartService->addItem($itemData);
+    
+    return response()->json([
+        'success' => true,
+        'message' => 'Service provider added to cart',
+        'cart_count' => $this->cartService->getItemCount()
+    ]);
+}
     
     /**
      * Add package to cart

@@ -108,22 +108,34 @@ class CartService
     /**
      * Get cart subtotal
      */
-    public function getSubtotal(): float
-    {
-        $subtotal = 0;
-        
-        foreach ($this->getItems() as $item) {
-            $itemTotal = $item['price'] * $item['quantity'];
-            
-            if ($item['type'] === 'product' && isset($item['rental_days'])) {
-                $itemTotal *= max(1, $item['rental_days']); // Ensure at least 1 day
-            }
-            
-            $subtotal += $itemTotal;
+  public function getSubtotal(): float
+{
+    $subtotal = 0;
+    
+    foreach ($this->getItems() as $item) {
+        switch ($item['type']) {
+            case 'product':
+                $itemTotal = $item['price'] * $item['quantity'] * ($item['rental_days'] ?? 1);
+                break;
+                
+            case 'service_provider':
+                // Service providers don't have quantity multiplier (always 1)
+                $itemTotal = $item['price'];
+                break;
+                
+            case 'package':
+                $itemTotal = $item['price'] * $item['quantity'];
+                break;
+                
+            default:
+                $itemTotal = $item['price'] * ($item['quantity'] ?? 1);
         }
         
-        return round($subtotal, 2);
+        $subtotal += $itemTotal;
     }
+    
+    return $subtotal;
+}
     
     /**
      * Get tax amount

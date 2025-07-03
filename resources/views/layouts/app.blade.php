@@ -53,10 +53,13 @@
     <!-- Scripts -->
     @include('layouts.partials.scripts')
     
-    <!-- Page Specific Scripts -->
-    @stack('scripts')
-    
     <!-- Livewire Scripts -->
     @livewireScripts
+    
+    <!-- Alpine.js - Load after Livewire -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Custom Scripts -->
+    @stack('scripts')
 </body>
 </html>

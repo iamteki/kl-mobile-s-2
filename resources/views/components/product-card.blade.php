@@ -61,13 +61,14 @@
                         <i class="fas fa-eye"></i>
                     </button>
                     
-                    @if($product->available_quantity > 0)
-                        <button class="btn-icon add-to-cart" 
-                                title="Add to Cart"
-                                data-product-id="{{ $product->id }}">
-                            <i class="fas fa-shopping-cart"></i>
-                        </button>
-                    @else
+                  @if($product->available_quantity > 0)
+    <button class="btn-icon add-to-cart" 
+            title="Add to Cart"
+            data-product-id="{{ $product->id }}"
+            onclick="addToCart({{ $product->id }}, this)">
+        <i class="fas fa-shopping-cart"></i>
+    </button>
+@else
                         <button class="btn-icon" disabled title="Out of Stock">
                             <i class="fas fa-shopping-cart"></i>
                         </button>
@@ -262,3 +263,66 @@
     transform: none;
 }
 </style>
+
+<script>
+function addToCart(productId, button) {
+    const originalHTML = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    // Get default rental period (1 day)
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const eventDate = tomorrow.toISOString().split('T')[0];
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    
+    const cartData = {
+        type: 'product',
+        product_id: productId,
+        quantity: 1,
+        rental_days: 1,
+        event_date: eventDate
+    };
+    
+    fetch('/cart/add', {
+        method: 'POST',
+        body: JSON.stringify(cartData),
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update Livewire cart components
+            if (window.Livewire) {
+                Livewire.dispatch('itemAddedToCart');
+            }
+            
+            // Show success animation
+            button.innerHTML = '<i class="fas fa-check"></i>';
+            button.classList.add('btn-success');
+            
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.classList.remove('btn-success');
+                button.disabled = false;
+            }, 1500);
+        } else {
+            alert(data.message || 'Failed to add to cart');
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+    });
+}
+</script>

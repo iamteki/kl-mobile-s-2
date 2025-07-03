@@ -9,6 +9,7 @@ use App\Services\AvailabilityService;
 use App\Services\PricingService;
 use App\Services\BookingService;
 use App\View\Composers\NavigationComposer;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -48,5 +49,11 @@ class AppServiceProvider extends ServiceProvider
             ['layouts.partials.navigation', 'layouts.partials.footer'], 
             NavigationComposer::class
         );
+
+
+         // Register Livewire components
+    Livewire::component('cart-dropdown', \App\Livewire\CartDropdown::class);
+    Livewire::component('cart-page', \App\Livewire\CartPage::class);
+    Livewire::component('booking-form', \App\Livewire\BookingForm::class);
     }
 }

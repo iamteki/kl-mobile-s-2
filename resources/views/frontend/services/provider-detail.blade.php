@@ -895,6 +895,7 @@
 @push('scripts')
 <script>
 // Handle Add to Cart
+// Update the form submission part
 document.getElementById('providerBookingForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
@@ -912,18 +913,15 @@ document.getElementById('providerBookingForm').addEventListener('submit', functi
         provider_id: formData.get('provider_id'),
         event_date: formData.get('event_date'),
         start_time: formData.get('start_time'),
-        quantity: 1
+        _token: '{{ csrf_token() }}'
     };
     
-    // Add pricing tier or duration
+    // Add pricing tier or duration - ensure duration is an integer
     if (formData.get('pricing_tier_id')) {
         cartData.pricing_tier_id = formData.get('pricing_tier_id');
-        const selectedOption = document.querySelector('#pricing_tier_id option:checked');
-        cartData.price = selectedOption.dataset.price;
-        cartData.duration = selectedOption.dataset.duration;
     } else {
-        cartData.duration = formData.get('duration');
-        cartData.price = {{ $provider->base_price }} * (cartData.duration / {{ $provider->min_booking_hours }});
+        // Convert duration to integer
+        cartData.duration = parseInt(formData.get('duration')) || {{ $provider->min_booking_hours }};
     }
     
     // Add to cart via AJAX
@@ -945,6 +943,12 @@ document.getElementById('providerBookingForm').addEventListener('submit', functi
             // Update cart count in header
             updateCartCount();
             
+            // Trigger Livewire event for cart dropdown
+            if (window.Livewire) {
+                Livewire.dispatch('cartUpdated');
+                Livewire.dispatch('itemAddedToCart');
+            }
+            
             // Optionally redirect to cart
             setTimeout(() => {
                 if (confirm('Service added to cart. Would you like to view your cart?')) {
@@ -964,6 +968,12 @@ document.getElementById('providerBookingForm').addEventListener('submit', functi
         button.innerHTML = originalText;
     });
 });
+
+// Update cart count helper
+function updateCartCount() {
+    // This will be handled by Livewire cart dropdown component
+    document.dispatchEvent(new CustomEvent('cartUpdated'));
+}
 
 // Handle Check Availability
 document.getElementById('checkAvailabilityBtn').addEventListener('click', function() {
@@ -1044,16 +1054,7 @@ function showNotification(type, message) {
     }, 3000);
 }
 
-// Update cart count
-function updateCartCount() {
-    // This would typically fetch the cart count from the server
-    // For now, just increment the visible count
-    const cartBadge = document.querySelector('.cart-count');
-    if (cartBadge) {
-        const currentCount = parseInt(cartBadge.textContent) || 0;
-        cartBadge.textContent = currentCount + 1;
-    }
-}
+
 
 // Add notification styles
 const style = document.createElement('style');

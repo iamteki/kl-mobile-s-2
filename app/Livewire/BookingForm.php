@@ -130,34 +130,45 @@ class BookingForm extends Component
         }
     }
     
-    public function addToCart()
-    {
-        $this->validate();
-        
-        if (!$this->isAvailable) {
-            $this->addError('availability', 'Equipment is not available for the selected dates.');
-            return;
-        }
-        
-        $cartService = app(CartService::class);
-        
-        $cartService->addItem(
-            $this->product->id,
-            $this->quantity,
-            $this->selectedVariation ? $this->selectedVariation['id'] : null,
-            $this->startDate
-        );
-        
-        // Update event details in cart
-        $cartService->updateEventDetails($this->startDate);
-        
-        // Dispatch events (Livewire 3 syntax)
-        $this->dispatch('cartUpdated');
-        $this->dispatch('itemAddedToCart');
-        
-        // Show success message
-        session()->flash('success', 'Item added to cart successfully!');
+   public function addToCart()
+{
+    $this->validate();
+    
+    if (!$this->isAvailable) {
+        $this->addError('availability', 'Equipment is not available for the selected dates.');
+        return;
     }
+    
+    $cartService = app(CartService::class);
+    
+    // Calculate rental days
+    $startDate = Carbon::parse($this->startDate);
+    $endDate = Carbon::parse($this->endDate);
+    $rentalDays = $startDate->diffInDays($endDate) + 1;
+    
+    // Prepare cart item data as array
+    $itemData = [
+        'type' => 'product',
+        'product_id' => $this->product->id,
+        'variation_id' => $this->selectedVariation ? $this->selectedVariation['id'] : null,
+        'name' => $this->product->name . ($this->selectedVariation ? ' - ' . $this->selectedVariation['name'] : ''),
+        'price' => $this->selectedVariation ? $this->selectedVariation['price'] : $this->product->base_price,
+        'quantity' => $this->quantity,
+        'rental_days' => $rentalDays,
+        'event_date' => $this->startDate,
+        'image' => $this->product->main_image_url ?? $this->product->image ?? 'https://via.placeholder.com/300',
+    ];
+    
+    // Add item to cart
+    $cartService->addItem($itemData);
+    
+    // Dispatch events
+    $this->dispatch('cartUpdated');
+    $this->dispatch('itemAddedToCart');
+    
+    // Show success message
+    session()->flash('success', 'Item added to cart successfully!');
+}
     
     public function bookNow()
     {

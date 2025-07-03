@@ -4,24 +4,22 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Services\CartService;
+use Livewire\Attributes\On;
 
 class CartDropdown extends Component
 {
-    public $isOpen = false;
-    public $cartItems = [];
-    public $cartTotal = 0;
-    public $cartCount = 0;
-    
-    protected $listeners = [
-        'cartUpdated' => 'refreshCart',
-        'itemAddedToCart' => 'handleItemAdded'
-    ];
+    public bool $isOpen = false;
+    public array $cartItems = [];
+    public float $cartTotal = 0;
+    public int $cartCount = 0;
     
     public function mount()
     {
         $this->refreshCart();
     }
     
+    #[On('cartUpdated')]
+    #[On('itemAddedToCart')]
     public function refreshCart()
     {
         $cartService = app(CartService::class);
@@ -31,13 +29,14 @@ class CartDropdown extends Component
         $this->cartCount = $cartService->getItemCount();
     }
     
+    #[On('itemAddedToCart')]
     public function handleItemAdded()
     {
         $this->refreshCart();
         $this->isOpen = true;
         
-        // Auto close after 3 seconds
-        $this->dispatch('closeCartDropdown');
+        // Dispatch browser event for auto-close
+        $this->dispatch('item-added-to-cart');
     }
     
     public function toggleCart()
@@ -45,7 +44,7 @@ class CartDropdown extends Component
         $this->isOpen = !$this->isOpen;
     }
     
-    public function removeItem($itemId)
+    public function removeItem(string $itemId)
     {
         app(CartService::class)->removeItem($itemId);
         $this->refreshCart();
@@ -53,6 +52,9 @@ class CartDropdown extends Component
         if ($this->cartCount === 0) {
             $this->isOpen = false;
         }
+        
+        // Notify other components
+        $this->dispatch('cartUpdated');
     }
     
     public function render()
