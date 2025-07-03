@@ -13,6 +13,11 @@ class CartDropdown extends Component
     public float $cartTotal = 0;
     public int $cartCount = 0;
     
+    protected $listeners = [
+        'cartUpdated' => 'refreshCart',
+        'itemAddedToCart' => 'handleItemAdded'
+    ];
+    
     public function mount()
     {
         $this->refreshCart();
@@ -24,6 +29,7 @@ class CartDropdown extends Component
     {
         $cartService = app(CartService::class);
         
+        // Get ALL items, not limited
         $this->cartItems = $cartService->getItems();
         $this->cartTotal = $cartService->getTotal();
         $this->cartCount = $cartService->getItemCount();
@@ -35,7 +41,7 @@ class CartDropdown extends Component
         $this->refreshCart();
         $this->isOpen = true;
         
-        // Dispatch browser event for auto-close
+        // Auto-close after 3 seconds
         $this->dispatch('item-added-to-cart');
     }
     
@@ -46,7 +52,9 @@ class CartDropdown extends Component
     
     public function removeItem(string $itemId)
     {
-        app(CartService::class)->removeItem($itemId);
+        $cartService = app(CartService::class);
+        $cartService->removeItem($itemId);
+        
         $this->refreshCart();
         
         if ($this->cartCount === 0) {

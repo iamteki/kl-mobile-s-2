@@ -23,6 +23,12 @@ class CartPage extends Component
     {
         $cartService = app(CartService::class);
         $this->cart = $cartService->getCart();
+        
+        // Check if coupon is applied
+        if ($this->cart['coupon']) {
+            $this->couponApplied = true;
+            $this->couponCode = $this->cart['coupon'];
+        }
     }
     
     public function updateQuantity($itemId, $quantity)
@@ -36,7 +42,7 @@ class CartPage extends Component
         $cartService->updateQuantity($itemId, $quantity);
         
         $this->refreshCart();
-       $this->dispatch('cartUpdated');
+        $this->dispatch('cartUpdated');
     }
     
     public function removeItem($itemId)
@@ -45,10 +51,14 @@ class CartPage extends Component
         $cartService->removeItem($itemId);
         
         $this->refreshCart();
-      $this->dispatch('cartUpdated');
+        $this->dispatch('cartUpdated');
         
+        // Show success message
+        session()->flash('success', 'Item removed from cart');
+        
+        // If cart is empty, redirect
         if (count($this->cart['items']) === 0) {
-            return redirect()->route('cart.index');
+            return redirect()->route('home')->with('info', 'Your cart is empty');
         }
     }
     
@@ -57,25 +67,25 @@ class CartPage extends Component
         $cartService = app(CartService::class);
         $cartService->clearCart();
         
-        return redirect()->route('cart.index');
+        return redirect()->route('home')->with('info', 'Cart cleared');
     }
     
     public function applyCoupon()
     {
         if (empty($this->couponCode)) {
             $this->couponMessage = 'Please enter a coupon code.';
+            $this->couponApplied = false;
             return;
         }
         
-        // Mock coupon validation
-        if (strtoupper($this->couponCode) === 'SAVE10') {
-            $this->couponApplied = true;
-            $this->couponMessage = 'Coupon applied successfully! 10% discount added.';
-            $this->cart['discount'] = $this->cart['total'] * 0.1;
-            $this->cart['coupon'] = $this->couponCode;
-        } else {
-            $this->couponApplied = false;
-            $this->couponMessage = 'Invalid coupon code.';
+        $cartService = app(CartService::class);
+        $result = $cartService->applyCoupon($this->couponCode);
+        
+        $this->couponMessage = $result['message'];
+        $this->couponApplied = $result['success'];
+        
+        if ($result['success']) {
+            $this->refreshCart();
         }
     }
     
@@ -92,12 +102,17 @@ class CartPage extends Component
     
     public function proceedToCheckout()
     {
-        // Validate cart availability before checkout
+        // Validate cart has items
+        if (count($this->cart['items']) === 0) {
+            return redirect()->route('home')->with('error', 'Your cart is empty');
+        }
+        
+        // Check if user is logged in
         if (auth()->check()) {
             return redirect()->route('checkout.event-details');
         } else {
             session(['url.intended' => route('checkout.event-details')]);
-            return redirect()->route('login');
+            return redirect()->route('login')->with('info', 'Please login to continue with checkout');
         }
     }
     

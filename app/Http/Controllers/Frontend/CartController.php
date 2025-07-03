@@ -20,25 +20,19 @@ class CartController extends Controller
     }
     
     /**
-     * Display cart page
+     * Display cart page (now uses Livewire component)
      */
     public function index()
     {
-        $cartItems = $this->cartService->getItems();
-        $subtotal = $this->cartService->getSubtotal();
-        $tax = $this->cartService->getTax();
-        $total = $this->cartService->getTotal();
-        
-        return view('frontend.cart.index', compact('cartItems', 'subtotal', 'tax', 'total'));
+        return view('frontend.cart.index');
     }
     
     /**
-     * Add item to cart
+     * Add item to cart (AJAX endpoint)
      */
     public function add(Request $request)
     {
         try {
-            // Handle different item types
             switch ($request->type) {
                 case 'product':
                     return $this->addProduct($request);
@@ -56,6 +50,8 @@ class CartController extends Controller
                     ], 400);
             }
         } catch (\Exception $e) {
+            \Log::error('Cart add error: ' . $e->getMessage());
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to add item to cart: ' . $e->getMessage()
@@ -63,9 +59,6 @@ class CartController extends Controller
         }
     }
     
-    /**
-     * Add product to cart
-     */
     protected function addProduct(Request $request)
     {
         $request->validate([
@@ -79,7 +72,6 @@ class CartController extends Controller
         $product = Product::findOrFail($request->product_id);
         $variation = $request->variation_id ? ProductVariation::find($request->variation_id) : null;
         
-        // Prepare cart item data
         $itemData = [
             'type' => 'product',
             'product_id' => $product->id,
@@ -89,7 +81,8 @@ class CartController extends Controller
             'quantity' => $request->quantity,
             'rental_days' => $request->rental_days,
             'event_date' => $request->event_date,
-            'image' => $product->main_image_url ?? $product->image,
+            'image' => $product->main_image_url ?? $product->image ?? 'https://via.placeholder.com/300',
+            'category' => $product->category->name ?? 'Equipment'
         ];
         
         $this->cartService->addItem($itemData);
@@ -101,141 +94,65 @@ class CartController extends Controller
         ]);
     }
     
-    /**
-     * Add service provider to cart
-     */
-   protected function addServiceProvider(Request $request)
-{
-    $rules = [
-        'provider_id' => 'required|exists:service_providers,id',
-        'pricing_tier_id' => 'nullable|exists:service_provider_pricing,id',
-        'event_date' => 'required|date|after:today',
-        'start_time' => 'required',
-    ];
-    
-    // Only require duration if no pricing tier is selected
-    if (!$request->pricing_tier_id) {
-        $rules['duration'] = 'required|integer|min:1';
+    protected function addServiceProvider(Request $request)
+    {
+        $rules = [
+            'provider_id' => 'required|exists:service_providers,id',
+            'pricing_tier_id' => 'nullable|exists:service_provider_pricing,id',
+            'event_date' => 'required|date|after:today',
+            'start_time' => 'required',
+        ];
+        
+        if (!$request->pricing_tier_id) {
+            $rules['duration'] = 'required|integer|min:1';
+        }
+        
+        $request->validate($rules);
+        
+        $provider = ServiceProvider::findOrFail($request->provider_id);
+        
+        if ($request->pricing_tier_id) {
+            $pricingTier = ServiceProviderPricing::findOrFail($request->pricing_tier_id);
+            $price = $pricingTier->price;
+            preg_match('/(\d+)/', $pricingTier->duration, $matches);
+            $duration = isset($matches[1]) ? (int)$matches[1] : $provider->min_booking_hours;
+            $tierName = $pricingTier->tier_name;
+        } else {
+            $duration = (int)$request->duration;
+            $price = $provider->base_price * ($duration / $provider->min_booking_hours);
+            $tierName = 'Standard';
+        }
+        
+        $itemData = [
+            'type' => 'service_provider',
+            'provider_id' => $provider->id,
+            'pricing_tier_id' => $request->pricing_tier_id,
+            'name' => $provider->display_name . ' - ' . $tierName,
+            'price' => $price,
+            'quantity' => 1,
+            'event_date' => $request->event_date,
+            'start_time' => $request->start_time,
+            'duration' => $duration,
+            'duration_text' => $duration . ' hours',
+            'image' => $provider->profile_image_url ?? 'https://via.placeholder.com/300',
+            'category' => $provider->category->name ?? 'Service',
+        ];
+        
+        $this->cartService->addItem($itemData);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Service provider added to cart',
+            'cart_count' => $this->cartService->getItemCount()
+        ]);
     }
     
-    $request->validate($rules);
-    
-    $provider = ServiceProvider::findOrFail($request->provider_id);
-    
-    // Get pricing details
-    if ($request->pricing_tier_id) {
-        $pricingTier = ServiceProviderPricing::findOrFail($request->pricing_tier_id);
-        $price = $pricingTier->price;
-        // Extract numeric duration from string like "4 hours"
-        preg_match('/(\d+)/', $pricingTier->duration, $matches);
-        $duration = isset($matches[1]) ? (int)$matches[1] : $provider->min_booking_hours;
-        $tierName = $pricingTier->tier_name;
-    } else {
-        $duration = (int)$request->duration;
-        $price = $provider->base_price * ($duration / $provider->min_booking_hours);
-        $tierName = 'Standard';
-    }
-    
-    // Prepare cart item data
-    $itemData = [
-        'type' => 'service_provider',
-        'provider_id' => $provider->id,
-        'pricing_tier_id' => $request->pricing_tier_id,
-        'name' => $provider->display_name . ' - ' . $tierName,
-        'price' => $price,
-        'quantity' => 1, // Service providers are always quantity 1
-        'event_date' => $request->event_date,
-        'start_time' => $request->start_time,
-        'duration' => $duration, // Store as integer
-        'duration_text' => $duration . ' hours', // Store display text separately
-        'image' => $provider->profile_image_url ?? 'https://via.placeholder.com/300',
-        'category' => $provider->category->name ?? 'Service',
-    ];
-    
-    $this->cartService->addItem($itemData);
-    
-    return response()->json([
-        'success' => true,
-        'message' => 'Service provider added to cart',
-        'cart_count' => $this->cartService->getItemCount()
-    ]);
-}
-    
-    /**
-     * Add package to cart
-     */
     protected function addPackage(Request $request)
     {
-        // Similar implementation for packages
-        // ...
-    }
-    
-    /**
-     * Update cart item quantity
-     */
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'quantity' => 'required|integer|min:0'
+        // Implement package logic
+        return response()->json([
+            'success' => false,
+            'message' => 'Package functionality coming soon'
         ]);
-        
-        if ($request->quantity == 0) {
-            $this->cartService->removeItem($id);
-            $message = 'Item removed from cart';
-        } else {
-            $this->cartService->updateQuantity($id, $request->quantity);
-            $message = 'Cart updated';
-        }
-        
-        if ($request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-                'subtotal' => $this->cartService->getSubtotal(),
-                'tax' => $this->cartService->getTax(),
-                'total' => $this->cartService->getTotal(),
-                'item_count' => $this->cartService->getItemCount()
-            ]);
-        }
-        
-        return redirect()->route('cart.index')->with('success', $message);
-    }
-    
-    /**
-     * Remove item from cart
-     */
-    public function remove($id)
-    {
-        $this->cartService->removeItem($id);
-        
-        if (request()->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Item removed from cart',
-                'subtotal' => $this->cartService->getSubtotal(),
-                'tax' => $this->cartService->getTax(),
-                'total' => $this->cartService->getTotal(),
-                'item_count' => $this->cartService->getItemCount()
-            ]);
-        }
-        
-        return redirect()->route('cart.index')->with('success', 'Item removed from cart');
-    }
-    
-    /**
-     * Clear cart
-     */
-    public function clear()
-    {
-        $this->cartService->clearCart();
-        
-        if (request()->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Cart cleared'
-            ]);
-        }
-        
-        return redirect()->route('cart.index')->with('success', 'Cart cleared');
     }
 }

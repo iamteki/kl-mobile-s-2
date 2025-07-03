@@ -9,7 +9,7 @@ class CartService
     protected string $sessionKey = 'cart';
     
     /**
-     * Get all cart items
+     * Get all cart items (no limit)
      */
     public function getItems(): array
     {
@@ -17,36 +17,50 @@ class CartService
     }
     
     /**
-     * Get cart summary (alias for getSummary)
+     * Get cart summary with all items
      */
     public function getCart(): array
     {
-        return $this->getSummary();
+        $items = $this->getItems();
+        
+        return [
+            'items' => $items, // Return ALL items, not limited
+            'count' => $this->getItemCount(),
+            'subtotal' => $this->getSubtotal(),
+            'tax' => $this->getTax(),
+            'total' => $this->getTotal(),
+            'discount' => Session::get('cart_discount', 0),
+            'coupon' => Session::get('cart_coupon', null)
+        ];
     }
     
     /**
-     * Add item to cart
+     * Add item to cart - improved to prevent duplicates and handle variations better
      */
     public function addItem(array $itemData): string
     {
         $cart = $this->getItems();
         $cartItemId = $this->generateCartItemId($itemData);
         
+        // For products, check if same item exists and merge quantities
         if ($itemData['type'] === 'product' && isset($cart[$cartItemId])) {
             $cart[$cartItemId]['quantity'] += $itemData['quantity'];
+            $cart[$cartItemId]['updated_at'] = now();
         } else {
             $itemData['id'] = $cartItemId;
             $itemData['added_at'] = now();
             $cart[$cartItemId] = $itemData;
         }
         
+        // Save the entire cart back to session
         Session::put($this->sessionKey, $cart);
+        Session::save(); // Force session save
         
         return $cartItemId;
     }
     
     /**
-     * Generate unique cart item ID
+     * Generate unique cart item ID based on item properties
      */
     protected function generateCartItemId(array $itemData): string
     {
@@ -73,8 +87,14 @@ class CartService
         $cart = $this->getItems();
         
         if (isset($cart[$itemId])) {
-            $cart[$itemId]['quantity'] = max(1, $quantity); // Ensure quantity is at least 1
+            if ($quantity <= 0) {
+                return $this->removeItem($itemId);
+            }
+            
+            $cart[$itemId]['quantity'] = $quantity;
+            $cart[$itemId]['updated_at'] = now();
             Session::put($this->sessionKey, $cart);
+            Session::save();
             return true;
         }
         
@@ -91,6 +111,7 @@ class CartService
         if (isset($cart[$itemId])) {
             unset($cart[$itemId]);
             Session::put($this->sessionKey, $cart);
+            Session::save();
             return true;
         }
         
@@ -103,47 +124,64 @@ class CartService
     public function clearCart(): void
     {
         Session::forget($this->sessionKey);
+        Session::forget('cart_discount');
+        Session::forget('cart_coupon');
+        Session::save();
+    }
+    
+    /**
+     * Get cart item count
+     */
+    public function getItemCount(): int
+    {
+        $count = 0;
+        foreach ($this->getItems() as $item) {
+            if ($item['type'] === 'service_provider') {
+                $count++; // Service providers always count as 1
+            } else {
+                $count += $item['quantity'] ?? 1;
+            }
+        }
+        return $count;
     }
     
     /**
      * Get cart subtotal
      */
-  public function getSubtotal(): float
-{
-    $subtotal = 0;
-    
-    foreach ($this->getItems() as $item) {
-        switch ($item['type']) {
-            case 'product':
-                $itemTotal = $item['price'] * $item['quantity'] * ($item['rental_days'] ?? 1);
-                break;
-                
-            case 'service_provider':
-                // Service providers don't have quantity multiplier (always 1)
-                $itemTotal = $item['price'];
-                break;
-                
-            case 'package':
-                $itemTotal = $item['price'] * $item['quantity'];
-                break;
-                
-            default:
-                $itemTotal = $item['price'] * ($item['quantity'] ?? 1);
+    public function getSubtotal(): float
+    {
+        $subtotal = 0;
+        
+        foreach ($this->getItems() as $item) {
+            switch ($item['type']) {
+                case 'product':
+                    $itemTotal = $item['price'] * $item['quantity'] * ($item['rental_days'] ?? 1);
+                    break;
+                    
+                case 'service_provider':
+                    $itemTotal = $item['price'];
+                    break;
+                    
+                case 'package':
+                    $itemTotal = $item['price'] * $item['quantity'];
+                    break;
+                    
+                default:
+                    $itemTotal = $item['price'] * ($item['quantity'] ?? 1);
+            }
+            
+            $subtotal += $itemTotal;
         }
         
-        $subtotal += $itemTotal;
+        return $subtotal;
     }
     
-    return $subtotal;
-}
-    
     /**
-     * Get tax amount
+     * Get tax amount (15% VAT)
      */
     public function getTax(): float
     {
-        $taxRate = config('site.business.tax_rate', 0) / 100;
-        return round($this->getSubtotal() * $taxRate, 2);
+        return $this->getSubtotal() * 0.15;
     }
     
     /**
@@ -151,77 +189,60 @@ class CartService
      */
     public function getTotal(): float
     {
-        return round($this->getSubtotal() + $this->getTax(), 2);
+        $subtotal = $this->getSubtotal();
+        $tax = $this->getTax();
+        $discount = Session::get('cart_discount', 0);
+        
+        return ($subtotal + $tax) - $discount;
     }
     
     /**
-     * Get total item count
+     * Apply coupon code
      */
-    public function getItemCount(): int
+    public function applyCoupon(string $code): array
     {
-        $count = 0;
+        // Mock coupon validation - replace with actual implementation
+        $validCoupons = [
+            'SAVE10' => ['type' => 'percentage', 'value' => 10],
+            'SAVE50' => ['type' => 'fixed', 'value' => 50],
+            'FIRSTORDER' => ['type' => 'percentage', 'value' => 15],
+        ];
         
-        foreach ($this->getItems() as $item) {
-            $count += $item['quantity'];
+        $code = strtoupper($code);
+        
+        if (isset($validCoupons[$code])) {
+            $coupon = $validCoupons[$code];
+            
+            if ($coupon['type'] === 'percentage') {
+                $discount = $this->getSubtotal() * ($coupon['value'] / 100);
+            } else {
+                $discount = $coupon['value'];
+            }
+            
+            Session::put('cart_coupon', $code);
+            Session::put('cart_discount', $discount);
+            Session::save();
+            
+            return [
+                'success' => true,
+                'message' => "Coupon {$code} applied successfully!",
+                'discount' => $discount
+            ];
         }
         
-        return $count;
-    }
-    
-    /**
-     * Check if cart has items
-     */
-    public function hasItems(): bool
-    {
-        return !empty($this->getItems());
-    }
-    
-    /**
-     * Get cart summary
-     */
-    public function getSummary(): array
-    {
         return [
-            'items' => $this->getItems(),
-            'item_count' => $this->getItemCount(),
-            'subtotal' => $this->getSubtotal(),
-            'tax' => $this->getTax(),
-            'total' => $this->getTotal(),
+            'success' => false,
+            'message' => 'Invalid coupon code'
         ];
     }
     
     /**
-     * Validate cart items availability
+     * Remove coupon
      */
-    public function validateAvailability(): array
+    public function removeCoupon(): void
     {
-        $errors = [];
-        $cart = $this->getItems();
-        
-        foreach ($cart as $itemId => $item) {
-            // Implement actual validation logic here
-            // This is just a placeholder structure
-            switch ($item['type']) {
-                case 'product':
-                    if (!isset($item['product_id']) || empty($item['product_id'])) {
-                        $errors[$itemId] = 'Invalid product';
-                    }
-                    break;
-                    
-                case 'service_provider':
-                    if (!isset($item['provider_id']) || empty($item['provider_id'])) {
-                        $errors[$itemId] = 'Invalid service provider';
-                    }
-                    break;
-                    
-                case 'package':
-                    if (!isset($item['package_id']) || empty($item['package_id'])) {
-                        $errors[$itemId] = 'Invalid package';
-                    }
-                    break;
-            }
-        }
-        
-        return $errors;
+        Session::forget('cart_coupon');
+        Session::forget('cart_discount');
+        Session::save();
     }
 }

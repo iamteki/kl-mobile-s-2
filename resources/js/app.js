@@ -278,6 +278,19 @@ document.addEventListener('DOMContentLoaded', () => {
     KLMobile.init();
 });
 
+// Cart update listener
+document.addEventListener('livewire:initialized', () => {
+    // Listen for cart updates
+    Livewire.on('cartUpdated', () => {
+        console.log('Cart updated');
+    });
+    
+    // Auto-close cart dropdown
+    Livewire.on('item-added-to-cart', () => {
+        console.log('Item added to cart');
+    });
+});
+
 // Handle Livewire events
 document.addEventListener('livewire:load', () => {
     Livewire.on('showToast', (message, type) => {

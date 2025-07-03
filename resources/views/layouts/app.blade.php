@@ -53,11 +53,11 @@
     <!-- Scripts -->
     @include('layouts.partials.scripts')
     
-    <!-- Livewire Scripts -->
+    <!-- Livewire Scripts (This already includes Alpine.js in Livewire v3) -->
     @livewireScripts
     
-    <!-- Alpine.js - Load after Livewire -->
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- DO NOT include Alpine.js separately if using Livewire 3 -->
+    <!-- It's already bundled with Livewire -->
     
     <!-- Custom Scripts -->
     @stack('scripts')
