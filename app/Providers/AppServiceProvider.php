@@ -10,6 +10,7 @@ use App\Services\PricingService;
 use App\Services\BookingService;
 use App\View\Composers\NavigationComposer;
 use Livewire\Livewire;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -49,6 +50,12 @@ class AppServiceProvider extends ServiceProvider
             ['layouts.partials.navigation', 'layouts.partials.footer'], 
             NavigationComposer::class
         );
+
+         Relation::morphMap([
+            'product' => \App\Models\Product::class,
+            'service_provider' => \App\Models\ServiceProvider::class,
+            'package' => \App\Models\Package::class,
+        ]);
 
 
          // Register Livewire components
