@@ -168,4 +168,54 @@ class Product extends Model implements HasMedia
     {
         return $this->available_quantity > 0 && $this->status === 'active';
     }
+
+
+
+
+    // Add this method to your Product model class:
+
+/**
+ * Set the included_items attribute
+ * Handle double-encoded JSON from database
+ */
+public function setIncludedItemsAttribute($value)
+{
+    if (is_array($value)) {
+        $this->attributes['included_items'] = json_encode($value);
+    } elseif (is_string($value)) {
+        // Check if it's double-encoded
+        $decoded = json_decode($value, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_string($decoded)) {
+            // It's double-encoded, decode again
+            $this->attributes['included_items'] = $decoded;
+        } else {
+            $this->attributes['included_items'] = $value;
+        }
+    } else {
+        $this->attributes['included_items'] = json_encode([]);
+    }
+}
+
+/**
+ * Get the included_items attribute
+ * Always return as array
+ */
+public function getIncludedItemsAttribute($value)
+{
+    if (!$value) {
+        return [];
+    }
+
+    // First decode
+    $decoded = json_decode($value, true);
+    
+    // Check if it needs another decode (double-encoded)
+    if (is_string($decoded)) {
+        $decoded = json_decode($decoded, true);
+    }
+    
+    return is_array($decoded) ? $decoded : [];
+}
+
+
 }

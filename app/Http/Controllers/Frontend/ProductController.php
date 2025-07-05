@@ -58,7 +58,7 @@ class ProductController extends Controller
         $features = $this->getProductFeatures($product);
         
         // Get what's included
-        $included = json_decode($product->included_items, true) ?? $this->getDefaultIncluded($product);
+       $included = $product->included_items ?: $this->getDefaultIncluded($product);
         
         // Get requirements
         $requirements = $this->getProductRequirements($product);

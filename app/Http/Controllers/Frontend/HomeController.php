@@ -58,22 +58,25 @@ class HomeController extends Controller
                     return $product;
                 });
             
-            // Get packages
-            $packages = Package::where('status', 'active')
-                ->orderBy('sort_order')
-                ->limit(3)
-                ->get()
-                ->map(function ($package, $index) {
-                    // Add badge for middle package
-                    if ($index === 1) {
-                        $package->badge = 'Most Popular';
-                    }
-                    
-                    // Parse features from JSON
-                    $package->features = json_decode($package->features, true) ?? [];
-                    
-                    return $package;
-                });
+           // Get packages
+$packages = Package::where('status', 'active')
+    ->orderBy('sort_order')
+    ->limit(3)
+    ->get()
+    ->map(function ($package, $index) {
+        // Add badge for middle package
+        if ($index === 1) {
+            $package->badge = 'Most Popular';
+        }
+        
+        // Features are already cast to array in the model
+        // No need to decode - just ensure it's an array
+        if (!is_array($package->features)) {
+            $package->features = [];
+        }
+        
+        return $package;
+    });
                 
         } catch (\Exception $e) {
             // Log the error

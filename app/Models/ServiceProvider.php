@@ -65,10 +65,10 @@ class ServiceProvider extends Model implements HasMedia
     /**
      * Get the category that owns the service provider
      */
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(ServiceCategory::class, 'service_category_id');
-    }
+   public function category(): BelongsTo
+{
+    return $this->belongsTo(ServiceCategory::class, 'service_category_id');
+}
 
     /**
      * Get the pricing tiers

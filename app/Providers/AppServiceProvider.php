@@ -11,6 +11,8 @@ use App\Services\BookingService;
 use App\View\Composers\NavigationComposer;
 use Livewire\Livewire;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use App\Models\BookingItem;
+use App\Observers\BookingItemObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -63,5 +65,8 @@ class AppServiceProvider extends ServiceProvider
     Livewire::component('cart-page', \App\Livewire\CartPage::class);
     Livewire::component('booking-form', \App\Livewire\BookingForm::class);
     Livewire::component('package-booking', \App\Livewire\PackageBooking::class);
+
+     BookingItem::observe(BookingItemObserver::class);
+
     }
 }
