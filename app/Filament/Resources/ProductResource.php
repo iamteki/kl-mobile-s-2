@@ -17,6 +17,8 @@ use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Tabs;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
+use Filament\Tables\Columns\SpatieMediaLibraryImageColumn;
 
 class ProductResource extends Resource
 {
@@ -185,18 +187,37 @@ class ProductResource extends Resource
                             ]),
                             
                         Tabs\Tab::make('Media')
-                            ->schema([
-                                Section::make()
-                                    ->schema([
-                                        Forms\Components\TextInput::make('image')
-                                            ->label('Main Image URL')
-                                            ->url()
-                                            ->helperText('Temporary field - will be replaced with media library')
-                                            ->columnSpanFull(),
-                                            
-                                        // Note: We'll implement proper media upload after basic setup
-                                    ]),
-                            ]),
+    ->schema([
+        Section::make()
+            ->schema([
+                Forms\Components\SpatieMediaLibraryFileUpload::make('main')
+                    ->label('Main Product Image')
+                    ->collection('main')
+                    ->image()
+                    ->imageEditor()
+                    ->imageEditorAspectRatios([
+                        '16:9',
+                        '4:3',
+                        '1:1',
+                    ])
+                    ->maxSize(2048) // 2MB
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                    ->columnSpanFull()
+                    ->helperText('Upload main product image. Max size: 2MB. Formats: JPEG, PNG, WebP'),
+                    
+                Forms\Components\SpatieMediaLibraryFileUpload::make('gallery')
+                    ->label('Product Gallery')
+                    ->collection('gallery')
+                    ->multiple()
+                    ->reorderable()
+                    ->image()
+                    ->maxFiles(10)
+                    ->maxSize(2048) // 2MB each
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                    ->columnSpanFull()
+                    ->helperText('Upload up to 10 additional product images. Drag to reorder.'),
+            ]),
+    ]),
                             
                         Tabs\Tab::make('SEO')
                             ->schema([
@@ -299,6 +320,14 @@ class ProductResource extends Resource
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\SpatieMediaLibraryImageColumn::make('main')
+                    ->label('Image')
+                    ->collection('main')
+                    ->circular()
+                    ->size(50)
+                    ->defaultImageUrl(url('images/product-placeholder.jpg')),
+
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('category_id')

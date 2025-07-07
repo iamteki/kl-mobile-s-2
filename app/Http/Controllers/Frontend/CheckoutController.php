@@ -7,8 +7,11 @@ use App\Services\CartService;
 use App\Services\BookingService;
 use App\Models\Booking;
 use App\Models\Coupon;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Stripe\Stripe;
 use Stripe\PaymentIntent;
 use Carbon\Carbon;
@@ -102,7 +105,8 @@ class CheckoutController extends Controller
         }
         
         $cart = $this->cartService->getCart();
-        $user = auth()->user();
+        /** @var User $user */
+        $user = Auth::user();
         $customer = $user->customer;
         
         // Pre-fill customer info from profile
@@ -138,7 +142,8 @@ class CheckoutController extends Controller
         
         // Update user's customer profile if requested
         if ($request->boolean('save_info')) {
-            $user = auth()->user();
+            /** @var User $user */
+            $user = Auth::user();
             if (!$user->customer) {
                 $user->customer()->create([
                     'phone' => $validated['phone'],
@@ -197,7 +202,7 @@ class CheckoutController extends Controller
                 'currency' => 'lkr',
                 'description' => 'KL Mobile Event Booking',
                 'metadata' => [
-                    'user_id' => auth()->id(),
+                    'user_id' => Auth::id(),
                     'event_date' => $eventDetails['event_date'],
                     'event_type' => $eventDetails['event_type']
                 ]
@@ -253,11 +258,14 @@ class CheckoutController extends Controller
             $eventDetails = session('checkout.event_details');
             $customerInfo = session('checkout.customer_info');
             
+            /** @var User $user */
+            $user = Auth::user();
+            
             $booking = $this->bookingService->createBooking(
                 $cart,
                 $eventDetails,
                 $customerInfo,
-                auth()->user(),
+                $user,
                 $paymentIntent->id
             );
             
@@ -275,11 +283,11 @@ class CheckoutController extends Controller
             
         } catch (\Stripe\Exception\ApiErrorException $e) {
             DB::rollback();
-            \Log::error('Stripe payment error: ' . $e->getMessage());
+            Log::error('Stripe payment error: ' . $e->getMessage());
             return back()->withErrors(['payment' => 'Payment failed: ' . $e->getMessage()]);
         } catch (\Exception $e) {
             DB::rollback();
-            \Log::error('Checkout error: ' . $e->getMessage());
+            Log::error('Checkout error: ' . $e->getMessage());
             return back()->withErrors(['error' => 'An error occurred. Please try again.']);
         }
     }
@@ -289,8 +297,11 @@ class CheckoutController extends Controller
      */
     public function confirmation(Booking $booking)
     {
+        /** @var User $user */
+        $user = Auth::user();
+        
         // Ensure user can only see their own booking confirmations
-        if ($booking->customer_id !== auth()->user()->customer->id) {
+        if ($booking->customer_id !== $user->customer->id) {
             abort(403);
         }
         

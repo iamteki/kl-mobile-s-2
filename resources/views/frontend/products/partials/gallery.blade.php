@@ -25,10 +25,12 @@
                 <img src="{{ $product->main_image_url }}" alt="Main view">
             </div>
             @foreach($product->gallery_images as $index => $image)
-                <div class="thumbnail" onclick="changeImage('{{ $image['url'] }}')">
-                    <img src="{{ $image['thumb'] ?? $image['url'] }}" alt="View {{ $index + 2 }}">
-                </div>
-            @endforeach
+            <div class="thumbnail" onclick="changeImage('{{ $image['url'] }}')">
+                <img src="{{ $image['thumb'] ?? $image['url'] }}" 
+                    alt="View {{ $index + 2 }}"
+                    onerror="this.src='{{ $image['url'] }}'">
+            </div>
+        @endforeach
         </div>
     @endif
 </div>

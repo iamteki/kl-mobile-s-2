@@ -54,6 +54,18 @@ class CategoryController extends Controller
         
         // Paginate results
         $products = $query->paginate(12)->withQueryString();
+
+        // Transform product images
+            $products->transform(function ($product) {
+                $product->main_image_url = $product->getFirstMediaUrl('main');
+                $product->gallery_images = $product->getMedia('gallery')->map(function ($media) {
+                    return [
+                        'url' => $media->getUrl(),
+                        'thumb' => $media->getUrl('thumb')
+                    ];
+                });
+                return $product;
+            });
         
         // Get filter options
         $filters = $this->getFilterOptions($category);

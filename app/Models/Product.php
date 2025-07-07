@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+
 
 class Product extends Model implements HasMedia
 {
@@ -33,8 +35,7 @@ class Product extends Model implements HasMedia
         'addons',
         'meta_title',
         'meta_description',
-        'status',
-        'image' // temporary field for image URL
+        'status'
     ];
 
     protected $casts = [
@@ -45,6 +46,8 @@ class Product extends Model implements HasMedia
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    protected $with = ['media'];
 
     /**
      * Get the category that owns the product
@@ -90,14 +93,38 @@ class Product extends Model implements HasMedia
      * Register media collections
      */
     public function registerMediaCollections(): void
-    {
-        $this->addMediaCollection('main')
-            ->singleFile()
-            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+{
+    $this->addMediaCollection('main')
+        ->singleFile()
+        ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp'])
+        ->useFallbackUrl('https://via.placeholder.com/400x300')
+        ->useFallbackPath(public_path('images/product-placeholder.jpg'));
 
-        $this->addMediaCollection('gallery')
-            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
-    }
+    $this->addMediaCollection('gallery')
+        ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+}
+
+
+
+// public function registerMediaConversions(Media $media = null): void
+// {
+//     $this->addMediaConversion('thumb')
+//         ->width(150)
+//         ->height(150)
+//         ->sharpen(10);
+        
+//     $this->addMediaConversion('preview')
+//         ->width(500)
+//         ->height(500)
+//         ->quality(90);
+        
+//     $this->addMediaConversion('large')
+//         ->width(1200)
+//         ->height(900)
+//         ->quality(85)
+//         ->optimize()
+//         ->nonQueued();
+// }
 
     /**
      * Get a specific attribute value
@@ -127,15 +154,17 @@ class Product extends Model implements HasMedia
      * Get all media URLs for a collection
      */
     public function getMediaUrls($collection = 'gallery'): array
-    {
-        return $this->getMedia($collection)->map(function ($media) {
-            return [
-                'url' => $media->getUrl(),
-                'thumb' => $media->getUrl('thumb'),
-                'id' => $media->id
-            ];
-        })->toArray();
-    }
+{
+    return $this->getMedia($collection)->map(function ($media) {
+        return [
+            'url' => $media->getUrl(),
+            'thumb' => $media->hasGeneratedConversion('thumb') 
+                ? $media->getUrl('thumb') 
+                : $media->getUrl(), // Fallback to full size if thumb doesn't exist
+            'id' => $media->id
+        ];
+    })->toArray();
+}
 
     /**
      * Scope for active products
@@ -216,6 +245,37 @@ public function getIncludedItemsAttribute($value)
     
     return is_array($decoded) ? $decoded : [];
 }
+
+public function getMorphClass()
+{
+    return 'App\\Models\\Product';
+}
+
+public function registerMediaConversions(Media $media = null): void
+{
+    // Create only a simple thumbnail
+    $this->addMediaConversion('thumb')
+        ->width(300)
+        ->height(300)
+        ->nonQueued(); // Process immediately, don't queue
+}
+
+public function getMainImageUrlAttribute()
+{
+    return $this->getFirstMediaUrl('main');
+}
+
+public function getGalleryImagesAttribute()
+{
+    return $this->getMedia('gallery')->map(function ($media) {
+        return [
+            'url' => $media->getUrl(),
+            'thumb' => $media->getUrl('thumb')
+        ];
+    });
+}
+
+
 
 
 }

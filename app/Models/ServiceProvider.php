@@ -193,4 +193,66 @@ class ServiceProvider extends Model implements HasMedia
     {
         return $this->morphMany(BookingItem::class, 'item');
     }
+
+    // In ServiceProvider.php, add this method:
+
+
+
+// Add this method to your existing ServiceProvider model (app/Models/ServiceProvider.php)
+// Place it after the existing methods
+
+/**
+ * Get all portfolio items (both from media table and service_provider_media table)
+ * This combines uploaded images and video URLs into one collection
+ */
+public function getAllPortfolioItems()
+{
+    // Get all items from service_provider_media table
+    $mediaItems = $this->mediaItems()
+        ->orderBy('sort_order')
+        ->get()
+        ->map(function ($item) {
+            // Add a source flag to identify where it comes from
+            $item->source = 'database';
+            return $item;
+        });
+    
+    return $mediaItems;
+}
+
+/**
+ * Get only image portfolio items
+ */
+public function getPortfolioImages()
+{
+    return $this->mediaItems()
+        ->where('type', 'image')
+        ->orderBy('sort_order')
+        ->get();
+}
+
+/**
+ * Get only video portfolio items
+ */
+public function getPortfolioVideos()
+{
+    return $this->mediaItems()
+        ->where('type', 'video')
+        ->orderBy('sort_order')
+        ->get();
+}
+
+/**
+ * Get featured portfolio items
+ */
+public function getFeaturedPortfolioItems()
+{
+    return $this->mediaItems()
+        ->where('is_featured', true)
+        ->orderBy('sort_order')
+        ->limit(6)
+        ->get();
+}
+
+
 }

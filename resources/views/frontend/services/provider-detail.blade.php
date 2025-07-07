@@ -114,64 +114,78 @@
                     </div>
                 </div>
                 
-                <!-- Portfolio/Media Gallery -->
                 @if($provider->mediaItems->count() > 0)
-                    <div class="provider-section">
-                        <h3 class="section-title">Portfolio</h3>
-                        <div class="media-gallery">
-                            <div class="row g-3">
-                                @foreach($provider->mediaItems as $media)
-                                    <div class="col-md-4">
-                                        <div class="media-item" data-type="{{ $media->type }}">
-                                            @if($media->type == 'photo')
-                                                <img src="{{ $media->url }}" 
-                                                     alt="{{ $media->title }}"
-                                                     class="img-fluid"
-                                                     data-bs-toggle="modal" 
-                                                     data-bs-target="#mediaModal{{ $media->id }}">
-                                            @elseif($media->type == 'video')
-                                                <div class="video-thumbnail" 
-                                                     data-bs-toggle="modal" 
-                                                     data-bs-target="#mediaModal{{ $media->id }}">
-                                                    <img src="{{ $media->thumbnail_url }}" 
-                                                         alt="{{ $media->title }}"
-                                                         class="img-fluid">
-                                                    <div class="play-icon">
-                                                        <i class="fas fa-play"></i>
-                                                    </div>
-                                                </div>
-                                            @endif
-                                            @if($media->title)
-                                                <p class="media-title">{{ $media->title }}</p>
-                                            @endif
-                                        </div>
+    <div class="provider-section">
+        <h3 class="section-title">Portfolio</h3>
+        <div class="media-gallery">
+            <div class="row g-3">
+                @foreach($provider->getAllPortfolioItems() as $media)
+                    <div class="col-md-4">
+                        <div class="media-item" data-type="{{ $media->type }}">
+                            @if($media->type == 'image')
+                                <!-- Image Display -->
+                                <a href="{{ $media->url }}" 
+                                   data-fancybox="gallery" 
+                                   data-caption="{{ $media->title }}">
+                                    <img src="{{ $media->url }}" 
+                                         alt="{{ $media->title }}"
+                                         class="img-fluid rounded"
+                                         loading="lazy">
+                                    <div class="media-overlay">
+                                        <i class="fas fa-search-plus"></i>
                                     </div>
-                                    
-                                    <!-- Media Modal -->
-                                    <div class="modal fade" id="mediaModal{{ $media->id }}" tabindex="-1">
-                                        <div class="modal-dialog modal-lg modal-dialog-centered">
-                                            <div class="modal-content bg-dark">
-                                                <div class="modal-header border-0">
-                                                    <h5 class="modal-title">{{ $media->title }}</h5>
-                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    @if($media->type == 'photo')
-                                                        <img src="{{ $media->url }}" alt="{{ $media->title }}" class="img-fluid">
-                                                    @elseif($media->type == 'video')
-                                                        <div class="ratio ratio-16x9">
-                                                            <iframe src="{{ $media->embed_url }}" allowfullscreen></iframe>
-                                                        </div>
-                                                    @endif
-                                                </div>
-                                            </div>
+                                </a>
+                            @elseif($media->type == 'video')
+                                <!-- Video Display -->
+                                <div class="video-wrapper">
+                                    @if($media->thumbnail_url)
+                                        <img src="{{ $media->thumbnail_url }}" 
+                                             alt="{{ $media->title }}"
+                                             class="img-fluid rounded video-thumbnail"
+                                             loading="lazy">
+                                    @else
+                                        <div class="video-placeholder">
+                                            <i class="fas fa-play-circle"></i>
                                         </div>
+                                    @endif
+                                    <a href="{{ $media->url }}" 
+                                       data-fancybox="gallery"
+                                       data-caption="{{ $media->title }}"
+                                       class="play-button">
+                                        <i class="fas fa-play"></i>
+                                    </a>
+                                </div>
+                            @elseif($media->type == 'audio')
+                                <!-- Audio Display -->
+                                <div class="audio-wrapper">
+                                    <div class="audio-placeholder">
+                                        <i class="fas fa-music"></i>
                                     </div>
-                                @endforeach
+                                    <h5>{{ $media->title }}</h5>
+                                    <audio controls class="w-100 mt-2">
+                                        <source src="{{ $media->url }}" type="audio/mpeg">
+                                        Your browser does not support the audio element.
+                                    </audio>
+                                </div>
+                            @endif
+                            
+                            <!-- Media Info -->
+                            <div class="media-info">
+                                <h5 class="media-title">{{ $media->title }}</h5>
+                                @if($media->description)
+                                    <p class="media-description">{{ $media->description }}</p>
+                                @endif
+                                @if($media->is_featured)
+                                    <span class="badge bg-primary">Featured</span>
+                                @endif
                             </div>
                         </div>
                     </div>
-                @endif
+                @endforeach
+            </div>
+        </div>
+    </div>
+@endif
                 
                 <!-- Specialties -->
                 @if($provider->specialties && count($provider->specialties) > 0)

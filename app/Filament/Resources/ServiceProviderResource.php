@@ -34,7 +34,40 @@ class ServiceProviderResource extends Resource
                     ->tabs([
                         Tabs\Tab::make('Basic Information')
                             ->schema([
-                                Section::make()
+                                Section::make('Profile Image')
+                                    ->schema([
+                                        // Show current image if exists
+                                        Forms\Components\Placeholder::make('current_image')
+                                            ->label('Current Profile Image')
+                                            ->content(fn ($record) => $record && $record->profile_image_url 
+                                                ? new \Illuminate\Support\HtmlString(
+                                                    '<img src="' . $record->profile_image_url . '" 
+                                                         alt="Current profile image" 
+                                                         style="max-width: 200px; max-height: 200px; border-radius: 10px;">'
+                                                )
+                                                : 'No image uploaded'
+                                            )
+                                            ->visible(fn ($record) => $record && $record->exists),
+                                            
+                                        // SpatieMediaLibrary File Upload
+                                        Forms\Components\SpatieMediaLibraryFileUpload::make('profile')
+                                            ->label(fn ($record) => $record && $record->profile_image_url && !str_contains($record->profile_image_url, 'placeholder') ? 'Replace Profile Image' : 'Profile Image')
+                                            ->collection('profile')
+                                            ->image()
+                                            ->imageEditor()
+                                            ->imageEditorAspectRatios(['1:1'])
+                                            ->imageResizeMode('cover')
+                                            ->imageCropAspectRatio('1:1')
+                                            ->imageResizeTargetWidth('800')
+                                            ->imageResizeTargetHeight('800')
+                                            ->maxSize(5120) // 5MB
+                                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                            ->helperText('Upload a square profile image (recommended: 800x800px). Max 5MB.')
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->columns(1),
+                                    
+                                Section::make('Basic Details')
                                     ->schema([
                                         Grid::make(2)
                                             ->schema([
@@ -252,6 +285,15 @@ class ServiceProviderResource extends Resource
     {
         return $table
             ->columns([
+                // Profile image column using the accessor
+                Tables\Columns\ImageColumn::make('profile_image_url')
+                    ->label('Image')
+                    ->circular()
+                    ->size(50)
+                    ->defaultImageUrl(fn (ServiceProvider $record): string => 
+                        'https://ui-avatars.com/api/?name=' . urlencode($record->display_name) . '&color=9333ea&background=f3f4f6'
+                    ),
+                    
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable()
@@ -261,10 +303,10 @@ class ServiceProviderResource extends Resource
                     ),
                     
                 Tables\Columns\TextColumn::make('category.name')
-    ->label('Category')
-    ->sortable()
-    ->badge()
-    ->color('primary'),
+                    ->label('Category')
+                    ->sortable()
+                    ->badge()
+                    ->color('primary'),
                     
                 Tables\Columns\TextColumn::make('experience_level')
                     ->badge()
@@ -318,11 +360,11 @@ class ServiceProviderResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-               Tables\Filters\SelectFilter::make('service_category_id')
-    ->label('Category')
-    ->relationship('category', 'name')
-    ->searchable()
-    ->preload(),
+                Tables\Filters\SelectFilter::make('service_category_id')
+                    ->label('Category')
+                    ->relationship('category', 'name')
+                    ->searchable()
+                    ->preload(),
                     
                 Tables\Filters\SelectFilter::make('experience_level')
                     ->options([
@@ -390,14 +432,14 @@ class ServiceProviderResource extends Resource
             ->defaultSort('created_at', 'desc');
     }
 
-  public static function getRelations(): array
-{
-    return [
-        RelationManagers\PricingTiersRelationManager::class,
-        RelationManagers\MediaItemsRelationManager::class,
-        RelationManagers\ReviewsRelationManager::class,
-    ];
-}
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\PricingTiersRelationManager::class,
+            RelationManagers\MediaItemsRelationManager::class,
+            RelationManagers\ReviewsRelationManager::class,
+        ];
+    }
 
     public static function getPages(): array
     {
