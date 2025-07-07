@@ -34,7 +34,7 @@ return [
     /*
      * Should database transactions be run after database commits?
      */
-    'queue_conversions_after_database_commit' => env('QUEUE_CONVERSIONS_AFTER_DB_COMMIT', true),
+    'queue_conversions_after_database_commit' => false,
 
     /*
      * The fully qualified class name of the media model.
@@ -79,8 +79,9 @@ return [
 
     /*
      * The class that contains the strategy for determining a media file's path.
+     * UPDATED: Using custom path generator for organized folder structure
      */
-    'path_generator' => Spatie\MediaLibrary\Support\PathGenerator\DefaultPathGenerator::class,
+    'path_generator' => App\Support\MediaLibrary\CustomPathGenerator::class,
 
     /*
      * The class that contains the strategy for determining how to remove files.

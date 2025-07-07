@@ -47,7 +47,8 @@ class Product extends Model implements HasMedia
         'updated_at' => 'datetime',
     ];
 
-    protected $with = ['media'];
+    // REMOVED: protected $with = ['media']; 
+    // This was causing the infinite loop
 
     /**
      * Get the category that owns the product
@@ -93,38 +94,31 @@ class Product extends Model implements HasMedia
      * Register media collections
      */
     public function registerMediaCollections(): void
-{
-    $this->addMediaCollection('main')
-        ->singleFile()
-        ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp'])
-        ->useFallbackUrl('https://via.placeholder.com/400x300')
-        ->useFallbackPath(public_path('images/product-placeholder.jpg'));
+    {
+        $this->addMediaCollection('main')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp'])
+            ->useFallbackUrl('https://via.placeholder.com/400x300')
+            ->useFallbackPath(public_path('images/product-placeholder.jpg'));
 
-    $this->addMediaCollection('gallery')
-        ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
-}
+        $this->addMediaCollection('gallery')
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+    }
 
-
-
-// public function registerMediaConversions(Media $media = null): void
-// {
-//     $this->addMediaConversion('thumb')
-//         ->width(150)
-//         ->height(150)
-//         ->sharpen(10);
+    /**
+     * Register media conversions
+     */
+    public function registerMediaConversions(Media $media = null): void
+    {
+        // Temporarily disable conversions to avoid the null path error
+        // You can re-enable this once the file upload is working correctly
         
-//     $this->addMediaConversion('preview')
-//         ->width(500)
-//         ->height(500)
-//         ->quality(90);
-        
-//     $this->addMediaConversion('large')
-//         ->width(1200)
-//         ->height(900)
-//         ->quality(85)
-//         ->optimize()
-//         ->nonQueued();
-// }
+        // $this->addMediaConversion('thumb')
+        //     ->width(300)
+        //     ->height(300)
+        //     ->sharpen(10)
+        //     ->nonQueued(); // Process immediately, don't queue
+    }
 
     /**
      * Get a specific attribute value
@@ -146,25 +140,25 @@ class Product extends Model implements HasMedia
             return $conversion ? $media->getUrl($conversion) : $media->getUrl();
         }
         
-        // Fallback to image field or placeholder
-        return $this->image ?? 'https://via.placeholder.com/400x300';
+        // Fallback placeholder
+        return 'https://via.placeholder.com/400x300';
     }
 
     /**
      * Get all media URLs for a collection
      */
     public function getMediaUrls($collection = 'gallery'): array
-{
-    return $this->getMedia($collection)->map(function ($media) {
-        return [
-            'url' => $media->getUrl(),
-            'thumb' => $media->hasGeneratedConversion('thumb') 
-                ? $media->getUrl('thumb') 
-                : $media->getUrl(), // Fallback to full size if thumb doesn't exist
-            'id' => $media->id
-        ];
-    })->toArray();
-}
+    {
+        return $this->getMedia($collection)->map(function ($media) {
+            return [
+                'url' => $media->getUrl(),
+                'thumb' => $media->hasGeneratedConversion('thumb') 
+                    ? $media->getUrl('thumb') 
+                    : $media->getUrl(), // Fallback to full size if thumb doesn't exist
+                'id' => $media->id
+            ];
+        })->toArray();
+    }
 
     /**
      * Scope for active products
@@ -198,84 +192,75 @@ class Product extends Model implements HasMedia
         return $this->available_quantity > 0 && $this->status === 'active';
     }
 
-
-
-
-    // Add this method to your Product model class:
-
-/**
- * Set the included_items attribute
- * Handle double-encoded JSON from database
- */
-public function setIncludedItemsAttribute($value)
-{
-    if (is_array($value)) {
-        $this->attributes['included_items'] = json_encode($value);
-    } elseif (is_string($value)) {
-        // Check if it's double-encoded
-        $decoded = json_decode($value, true);
-        if (json_last_error() === JSON_ERROR_NONE && is_string($decoded)) {
-            // It's double-encoded, decode again
-            $this->attributes['included_items'] = $decoded;
+    /**
+     * Set the included_items attribute
+     * Handle double-encoded JSON from database
+     */
+    public function setIncludedItemsAttribute($value)
+    {
+        if (is_array($value)) {
+            $this->attributes['included_items'] = json_encode($value);
+        } elseif (is_string($value)) {
+            // Check if it's double-encoded
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_string($decoded)) {
+                // It's double-encoded, decode again
+                $this->attributes['included_items'] = $decoded;
+            } else {
+                $this->attributes['included_items'] = $value;
+            }
         } else {
-            $this->attributes['included_items'] = $value;
+            $this->attributes['included_items'] = json_encode([]);
         }
-    } else {
-        $this->attributes['included_items'] = json_encode([]);
-    }
-}
-
-/**
- * Get the included_items attribute
- * Always return as array
- */
-public function getIncludedItemsAttribute($value)
-{
-    if (!$value) {
-        return [];
     }
 
-    // First decode
-    $decoded = json_decode($value, true);
-    
-    // Check if it needs another decode (double-encoded)
-    if (is_string($decoded)) {
-        $decoded = json_decode($decoded, true);
+    /**
+     * Get the included_items attribute
+     * Always return as array
+     */
+    public function getIncludedItemsAttribute($value)
+    {
+        if (!$value) {
+            return [];
+        }
+
+        // First decode
+        $decoded = json_decode($value, true);
+        
+        // Check if it needs another decode (double-encoded)
+        if (is_string($decoded)) {
+            $decoded = json_decode($decoded, true);
+        }
+        
+        return is_array($decoded) ? $decoded : [];
     }
-    
-    return is_array($decoded) ? $decoded : [];
-}
 
-public function getMorphClass()
-{
-    return 'App\\Models\\Product';
-}
+    /**
+     * Get morph class
+     */
+    public function getMorphClass()
+    {
+        return 'App\\Models\\Product';
+    }
 
-public function registerMediaConversions(Media $media = null): void
-{
-    // Create only a simple thumbnail
-    $this->addMediaConversion('thumb')
-        ->width(300)
-        ->height(300)
-        ->nonQueued(); // Process immediately, don't queue
-}
+    /**
+     * Get main image URL attribute
+     */
+    public function getMainImageUrlAttribute()
+    {
+        return $this->getFirstMediaUrl('main');
+    }
 
-public function getMainImageUrlAttribute()
-{
-    return $this->getFirstMediaUrl('main');
-}
-
-public function getGalleryImagesAttribute()
-{
-    return $this->getMedia('gallery')->map(function ($media) {
-        return [
-            'url' => $media->getUrl(),
-            'thumb' => $media->getUrl('thumb')
-        ];
-    });
-}
-
-
-
-
+    /**
+     * Get gallery images attribute
+     */
+    public function getGalleryImagesAttribute()
+    {
+        return $this->getMedia('gallery')->map(function ($media) {
+            return [
+                'url' => $media->getUrl(),
+                'thumb' => $media->getUrl('thumb')
+            ];
+        });
+    }
 }
