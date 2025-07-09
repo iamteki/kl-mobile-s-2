@@ -113,11 +113,11 @@ class Product extends Model implements HasMedia
         // Temporarily disable conversions to avoid the null path error
         // You can re-enable this once the file upload is working correctly
         
-        // $this->addMediaConversion('thumb')
-        //     ->width(300)
-        //     ->height(300)
-        //     ->sharpen(10)
-        //     ->nonQueued(); // Process immediately, don't queue
+        $this->addMediaConversion('thumb')
+            ->width(300)
+            ->height(300)
+            ->sharpen(10)
+            ->nonQueued(); // Process immediately, don't queue
     }
 
     /**
