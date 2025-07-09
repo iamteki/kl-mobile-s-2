@@ -187,37 +187,37 @@ class ProductResource extends Resource
                             ]),
                             
                         Tabs\Tab::make('Media')
-    ->schema([
-        Section::make()
-            ->schema([
-                Forms\Components\SpatieMediaLibraryFileUpload::make('main')
-                    ->label('Main Product Image')
-                    ->collection('main')
-                    ->image()
-                    ->imageEditor()
-                    ->imageEditorAspectRatios([
-                        '16:9',
-                        '4:3',
-                        '1:1',
-                    ])
-                    ->maxSize(2048) // 2MB
-                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                    ->columnSpanFull()
-                    ->helperText('Upload main product image. Max size: 2MB. Formats: JPEG, PNG, WebP'),
-                    
-                Forms\Components\SpatieMediaLibraryFileUpload::make('gallery')
-                    ->label('Product Gallery')
-                    ->collection('gallery')
-                    ->multiple()
-                    ->reorderable()
-                    ->image()
-                    ->maxFiles(10)
-                    ->maxSize(2048) // 2MB each
-                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                    ->columnSpanFull()
-                    ->helperText('Upload up to 10 additional product images. Drag to reorder.'),
-            ]),
-    ]),
+                            ->schema([
+                                Section::make()
+                                    ->schema([
+                                        Forms\Components\SpatieMediaLibraryFileUpload::make('main')
+                                            ->label('Main Product Image')
+                                            ->collection('main')
+                                            ->image()
+                                            ->imageEditor()
+                                            ->imageEditorAspectRatios([
+                                                '16:9',
+                                                '4:3',
+                                                '1:1',
+                                            ])
+                                            ->maxSize(2048) // 2MB
+                                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                            ->columnSpanFull()
+                                            ->helperText('Upload main product image. Max size: 2MB. Formats: JPEG, PNG, WebP'),
+                                            
+                                        Forms\Components\SpatieMediaLibraryFileUpload::make('gallery')
+                                            ->label('Product Gallery')
+                                            ->collection('gallery')
+                                            ->multiple()
+                                            ->reorderable()
+                                            ->image()
+                                            ->maxFiles(10)
+                                            ->maxSize(2048) // 2MB each
+                                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                            ->columnSpanFull()
+                                            ->helperText('Upload up to 10 additional product images. Drag to reorder.'),
+                                    ]),
+                            ]),
                             
                         Tabs\Tab::make('SEO')
                             ->schema([
